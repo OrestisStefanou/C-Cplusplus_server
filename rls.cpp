@@ -1,18 +1,15 @@
-//A client for a remote directory listing service
-//usage:rls hostname directory
 #include<stdio.h>
-#include<stdlib.h>
-#include<unistd.h>
+#include<sys/wait.h>
 #include<sys/types.h>
 #include<sys/socket.h>
 #include<netinet/in.h>
 #include<netdb.h>
-#include<time.h>
-#include<string.h>
+#include<unistd.h>
+#include<stdlib.h>
 #include<ctype.h>
+#include<signal.h>
+#include<string.h>
 
-#define PORTNUM 15000
-#define BUFFSIZE 256
 
 void perror_exit(char *message){
     perror(message);
@@ -20,61 +17,49 @@ void perror_exit(char *message){
 }
 
 
-int write_all(int fd,char *buff,size_t size){
-    int sent,n;
-    for(sent=0;sent<size;sent+=n){
-        if((n=write(fd,buff+sent,size-sent))==-1){
-            return -1;//error
-        }
-    }
-    return sent;
-}
-
-
 int main(int argc, char const *argv[])
 {
-    sockaddr_in servadd;//The address of the server
-    hostent *hp;//to resolve server ip
-    int sock,n_read;//socket and message length
-    char buffer[BUFFSIZE];//to receive message
-
+    int port,sock,i;
+    char buf[256];
+    sockaddr_in server;
+    sockaddr *serverptr=(sockaddr *)&server;
+    hostent *rem;
     if(argc!=3){
-        printf("Usage:rls <hostname> <directory>\n");
+        printf("Please give host name and port number\n");
         exit(1);
     }
-
-    //STEP 1:Get a socket
-    if((sock=socket(AF_INET,SOCK_STREAM,0))==-1){
+    //Create socket
+    if((sock=socket(AF_INET,SOCK_STREAM,0))<0){
         perror_exit((char *)"socket");
     }
-
-    //STEP 2:Lookup server's address and connect there
-    if((hp=gethostbyname(argv[1]))==NULL){
+    //Find server address
+    if((rem=gethostbyname(argv[1]))==NULL){
         herror("gethostbyname");
         exit(1);
     }
-
-    memcpy(&servadd.sin_addr,hp->h_addr,hp->h_length);
-    servadd.sin_port=htons(PORTNUM);//set port number
-    servadd.sin_family = AF_INET;//set socket type
-    if(connect(sock,(sockaddr *)&servadd,sizeof(servadd))!=0){
+    port=atoi(argv[2]);
+    server.sin_family=AF_INET;//Internet doamin
+    memcpy(&server.sin_addr,rem->h_addr,rem->h_length);
+    server.sin_port=htons(port);//server port
+    //Initiate Connection
+    if(connect(sock,serverptr,sizeof(server))<0){
         perror_exit((char *)"connect");
     }
-
-    //STEP 3:send directory name + newline
-    if(write_all(sock,(char *)argv[2],strlen(argv[2]))==-1){
-        perror_exit((char *)"write");
-    }
-    if(write_all(sock,(char *)"\n",1)==-1){
-        perror_exit((char *)"write");
-    }
-
-    //STEP 4:read back results and send them to stdout
-    while((n_read=read(sock,buffer,BUFFSIZE))>0){
-        if(write_all(STDOUT_FILENO,buffer,n_read)<n_read){
-            perror_exit((char *)"fwrite");
+    printf("Connecting to %s port:%d\n",argv[1],port);
+    do{
+        printf("Give input string:");
+        fgets(buf,sizeof(buf),stdin);
+        for(i=0;buf[i]!='\0';i++){
+            //Send i-th character
+            if(write(sock,buf+i,1)<0){
+                perror_exit((char *)"write");
+            }
+            //receive i-th character transformed
+            if(read(sock,buf+i,1)<0){
+                perror_exit((char *)"read");
+            }
         }
-    }
+        printf("Received string %s\n",buf);
+    }while(strcmp(buf,"END\n")!=0);
     close(sock);
-    return 0;
 }

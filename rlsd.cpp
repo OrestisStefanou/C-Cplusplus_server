@@ -13,31 +13,19 @@
 #include<iostream>
 #include <ctime>
 #include <fstream> 
+#include<signal.h>
+#include<ctype.h>
+#include<sys/wait.h>
 
 
 using namespace std;
 
 #define PORTNUM 15000 //rlsd listens on this port
 
-//CHECK CLIENT'S INPUT
-void sanitize(char *str){
-    char *src,*dest;
-    for(src=dest=str;*src;src++){
-        if(*src=='/' || isalnum(*src)){
-            *dest++=*src;
-        }
-    }
-    *dest='\0';
-}
 
-
-
-void perror_exit(char *message){
-    perror(message);
-    exit(EXIT_FAILURE);
-}
-
-
+void child_server(int newsock);
+void perror_exit(char *message);
+void sigchld_handler(int sig);
 
 char *update_syslog(char *ip,char *hostname){
     char client_info[100];
@@ -64,45 +52,46 @@ char *update_syslog(char *ip,char *hostname){
 }
 
 
-
 int main(int argc, char const *argv[])
 {
-    sockaddr_in myaddr,client;//build our address here
-    int c,lsock,csock;//Listening and client sockets
-    FILE *sock_fp;//stream for socket IO
-    FILE *pipe_fp;//use popen to run ls
-    char dirname[BUFSIZ];//from client
-    char command[BUFSIZ];//for popen
-    sockaddr *serverptr = (sockaddr *)&myaddr;
-    sockaddr *clientptr = (sockaddr *)&client;
-    hostent *rem;
+    int port,sock,newsock;
+    struct sockaddr_in server,client;
+    socklen_t clientlen;
+    struct sockaddr *serverptr=(struct sockaddr *)&server;
+    struct sockaddr *clientptr=(struct sockaddr *)&client;
+    struct hostent *rem;
+    if(argc!=2){
+        printf("Please give port number\n");
+        exit(1);
+    }
+    port=atoi(argv[1]);
+    //Reap dead children asynchronously
+    signal(SIGCHLD,sigchld_handler);
 
-    //create a TCP SOCKET
-    if((lsock=socket(AF_INET,SOCK_STREAM,0))<0){
+    //Create socket
+    if((sock=socket(AF_INET,SOCK_STREAM,0))<0){
         perror_exit((char *)"socket");
-    }  
-
-    //bind address to socket
-    myaddr.sin_addr.s_addr=htonl(INADDR_ANY);
-    myaddr.sin_port=htons(PORTNUM);//port to bind socket
-    myaddr.sin_family=AF_INET;//internet address family
-    if(bind(lsock,(sockaddr *)&myaddr,sizeof(myaddr))){
+    }
+    server.sin_family=AF_INET;//Internet domain
+    server.sin_addr.s_addr=htonl(INADDR_ANY);
+    server.sin_port=htons(port);//the given port
+    //Bind socket to addresss
+    if(bind(sock,serverptr,sizeof(server))<0){
         perror_exit((char *)"bind");
     }
-
-    //Listen for connections with Qsize=5
-    if(listen(lsock,5)!=0){
+    //Listen for connections
+    if(listen(sock,5)<0){
         perror_exit((char *)"listen");
     }
+    printf("Listening for connections to port %d\n",port);
 
-    //Main loop->Accept-read-write
     while(1){
-        socklen_t clientlen = sizeof(client);
-        //accept connection,ignore client address
-        if((csock=accept(lsock,clientptr,&clientlen))<0){
+        clientlen=sizeof(client);
+        //accept connection
+        if((newsock=accept(sock,clientptr,&clientlen))<0){
             perror_exit((char *)"accept");
         }
-        //Get clients info
+        //Find client's name
         if((rem=gethostbyaddr((char *)&client.sin_addr.s_addr,sizeof(client.sin_addr.s_addr),client.sin_family))==NULL){
             herror("gethostbyaddr");
             exit(1);
@@ -114,26 +103,47 @@ int main(int argc, char const *argv[])
   
         printf("Ip address is %s and port %d\n",IP_buffer,client.sin_port);
         update_syslog(IP_buffer,rem->h_name);
-        //open socket as buffered stream
-        if((sock_fp=fdopen(csock,"r+"))==NULL){
-            perror_exit((char *)fdopen);
+        switch (fork()) //Create child for serving client
+        {
+        case -1://Error
+            perror("fork");
+            break;
+
+        case 0: //Child process    
+            close(sock);
+            child_server(newsock);
+            exit(0);
+        default:
+            break;
         }
-        //read dirname and build ls command line
-        if(fgets(dirname,BUFSIZ,sock_fp)==NULL){
-            perror_exit((char *)"reading dirname");
-        }
-        sanitize(dirname);
-        snprintf(command,BUFSIZ,"ls %s",dirname);
-        //invoke ls through popen
-        if((pipe_fp=popen(command,"r"))==NULL){//Popen->Fork+exec+pipe
-            perror_exit((char *)"popen");
-        }
-        //transfer data from ls to socket
-        while((c=getc(pipe_fp))!=EOF){
-            putc(c,sock_fp);
-        }
-        pclose(pipe_fp);
-        fclose(sock_fp);
+        close(newsock);//parent closes socket to client
     }
-    return 0;
+}
+
+
+void child_server(int newsock){
+    char buf[1];
+    while (read(newsock,buf,1)>0)//Receive 1 char
+    {
+        putchar(buf[0]);//Print received char
+        //Capitalize character
+        buf[0]=toupper(buf[0]);
+        //Reply
+        if(write(newsock,buf,1)<0){
+            perror_exit((char *)"write");
+        }
+    }
+    printf("Closing connection.\n");
+    close(newsock);
+}
+
+
+//Wait for all dead child processes
+void sigchld_handler(int sig){
+    while(waitpid(-1,NULL,WNOHANG)>0);
+}
+
+void perror_exit(char *message){
+    perror(message);
+    exit(EXIT_FAILURE);
 }
