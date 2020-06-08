@@ -1,7 +1,15 @@
 #include"pipe.h"
 #include"worker_functions.h"
 #include"request.h"
+#include"network.h"
 #include<ctype.h>
+
+#define BACKLOG 10
+#define SERVER_NAME_LEN 255
+
+//NetWork Variables
+int listening_socket;
+struct pollfd *pfds;
 
 char client_fifo[256];  //Client fifo pipe name
 char server_fifo[256];  //Server fifo pipe name
@@ -137,6 +145,51 @@ int main(int argc, char const *argv[])
     (void) signal(SIGINT,terminate);//Handle interrupt signal from parent
     (void) signal(SIGQUIT,terminate);
 
+    //Network variables
+    int new_socket,err,port;
+    struct sockaddr_in address;
+    struct sockaddr_storage client_address;
+    socklen_t client_address_len;
+    char remoteIP[INET6_ADDRSTRLEN];
+    //Poll set variables
+    int fd_count = 0;
+    int fd_size = 5;
+    pfds = malloc(sizeof *pfds * fd_size);  //Create the set 
+
+    //CREATE A LISTENING SOCKET
+    //Initialize IPv4 address
+    memset(&address,0,sizeof(address));
+    address.sin_family = AF_INET;
+    address.sin_port = 0;
+    address.sin_addr.s_addr = INADDR_ANY;
+
+    //Create listening socket
+    if((listening_socket = socket(AF_INET,SOCK_STREAM,0))==-1){
+        perror("socket");
+        exit(EXIT_FAILURE);
+    }
+
+    //Bind address to socket
+    if(bind(listening_socket,(struct sockaddr *)&address,sizeof(address))==-1){
+        perror("bind");
+        exit(EXIT_FAILURE);
+    }
+
+    //Listen on socket
+    if(listen(listening_socket,BACKLOG)==-1){
+        perror("listen");
+        exit(EXIT_FAILURE);
+    }
+    //Get the port number the worker is listening
+    struct sockaddr_in sin;
+    socklen_t len=sizeof(sin);
+    if (getsockname(listening_socket, (struct sockaddr *)&sin, &len) == -1)
+        perror("getsockname");
+    else{
+        port = ntohs(sin.sin_port);
+        printf("Worker listening on port number %d\n",port);
+    }
+
     //printf("Worker %d running\n",getpid());
     int server_fifo_fd,client_fifo_fd;
     char request[100];
@@ -161,7 +214,7 @@ int main(int argc, char const *argv[])
         exit(EXIT_FAILURE);
     }
     (void) signal(SIGUSR1,SearchNewFiles);
-    //Main loop
+    //Loop until we get the dirs to handle and the info of the server
     while(1){
         request_queue=NULL;
         client_fifo_fd = open(client_fifo, O_RDONLY);//Wait for server to open it and to send a request
@@ -219,6 +272,8 @@ int main(int argc, char const *argv[])
         }
     }
     printf("Stats finished\n");
-    printf("Server address:%s and port:%d\n",myData.Server_Info.server_addr,myData.Server_Info.server_port);
+    //printf("Server address:%s and port:%d\n",myData.Server_Info.server_addr,myData.Server_Info.server_port);
     unlink(client_fifo);
+    free(pfds);
+    close(listening_socket);
 }
