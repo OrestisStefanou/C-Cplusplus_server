@@ -1,5 +1,7 @@
 #include"network.h"
 #include"buffer.h"
+#include"pipe.h"
+#include"WhoServerDataStructs.h"
 
 #define BACKLOG 10
 #define perror2(s, e) fprintf(stderr, "%s: %s\n", s, strerror(e))
@@ -212,7 +214,26 @@ void *serve_client(void *arg){
             int worker_port;
             read(clientInfo.fd,&worker_port,sizeof(int));
             printf("Worker is listening on port %d\n",worker_port);
-        }else
+        }
+        if(strcmp(buffer,"Stats\n")==0){
+            File_Stats stats;
+            read(clientInfo.fd,&stats,sizeof(stats));
+
+            if(err=pthread_mutex_lock(&mtx)){   //Lock mutex
+                perror2("pthread mutex lock",err);
+                exit(EXIT_FAILURE);
+            }
+            //Insert the stats in the Hashtable
+            File_Stats_Print(&stats);
+
+            //Unlock the mutex
+            if (err=pthread_mutex_unlock(&mtx))
+            {
+                perror2("pthread mutex unlock\n",err);
+                exit(EXIT_FAILURE);
+            }
+        }        
+        else
         {
             printf("Got message %s\n",buffer);
         }

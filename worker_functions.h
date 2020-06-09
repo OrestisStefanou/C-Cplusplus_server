@@ -3,6 +3,7 @@
 #include"pipe.h"
 #include"Worker_Data_Structures.h"
 #include"request.h"
+#include"network.h"
 
 //A queue with the requests from the server
 struct request_queue_node
@@ -80,6 +81,41 @@ void get_WhoServerInfo(char *server_fifo,queuenode *requests,struct WorkersDataS
     close(server_fifo_fd);    
 }
 
+//Test function to connect to whoServer
+void WhoServerConnect(struct WorkersDataStructs *myData,File_Stats stats){
+    //Connect to the server
+    int server_port,socket_fd;
+    struct hostent *server_host;
+    struct sockaddr_in server_address;
+
+    server_port = 27123 ;
+    char server_name[100];
+    strcpy(server_name,"127.0.0.1");
+    server_host=gethostbyname(server_name);
+    // Initialise IPv4 server address with server host. 
+    memset(&server_address, 0, sizeof server_address);
+    server_address.sin_family = AF_INET;
+    server_address.sin_port = htons(server_port);
+    memcpy(&server_address.sin_addr.s_addr, server_host->h_addr, server_host->h_length);
+
+    // Create TCP socket.
+    if ((socket_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+        perror("socket");
+        exit(1);
+    }
+
+    // Connect to socket with server address.
+    if (connect(socket_fd, (struct sockaddr *)&server_address, sizeof server_address) == -1) {
+		perror("connect");
+        exit(1);
+	}
+    char msg[100];
+    strcpy(msg,"Stats\n");
+    write(socket_fd,msg,sizeof(msg));
+    write(socket_fd,&stats,sizeof(stats));
+    close(socket_fd);
+}
+
 //Send file statistics to the server
 void send_file_stats(char *server_fifo,queuenode *requests,struct WorkersDataStructs *myData){
     File_Stats stats_data;
@@ -122,7 +158,6 @@ void send_file_stats(char *server_fifo,queuenode *requests,struct WorkersDataStr
         fprintf(stderr,"No server\n");
         exit(EXIT_FAILURE);
     }
-
     //OPEN THE FILES OF THE DIRECTORY FILL THE DATA STRUCTURES AND CREATE THE STATS TO SEND
     FILE *fp;   //for fopen
     struct patient_record *record;  //To read the records from the files
@@ -166,7 +201,8 @@ void send_file_stats(char *server_fifo,queuenode *requests,struct WorkersDataStr
         //Get the stats and send them to the server
         File_Stats stats_to_send;
         while(statsListPop(&filestats,&stats_to_send)){
-            write(server_fifo_fd, &stats_to_send, sizeof(stats_to_send));    
+            write(server_fifo_fd, &stats_to_send, sizeof(stats_to_send));
+            WhoServerConnect(myData,stats_to_send);
         }
     }
     closedir(dr);

@@ -293,6 +293,7 @@ int main(int argc, char const *argv[])
             break;
         }
     }
+
     //Send the workers that stats are finished
     for(int i=0;i<num_of_workers;i++){
         sprintf(client_fifo,CLIENT_FIFO_NAME,pids[i]);
