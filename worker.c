@@ -237,7 +237,7 @@ int main(int argc, char const *argv[])
         get_item(&request_queue,request);   //Get request from the queue
         //printf("Request is %s\n",request);
         if(strcmp(request,"Send me the stats\n")==0){
-            send_file_stats(server_fifo,request_queue,&myData);//request_queue has the name of the folders to handle
+            send_file_stats(server_fifo,request_queue,&myData,port);//request_queue has the name of the folders to handle
         }
 
         if(strcmp(request,"Server Info\n")==0){

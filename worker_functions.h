@@ -81,8 +81,8 @@ void get_WhoServerInfo(char *server_fifo,queuenode *requests,struct WorkersDataS
     close(server_fifo_fd);    
 }
 
-//Test function to connect to whoServer
-void WhoServerConnect(struct WorkersDataStructs *myData,File_Stats stats){
+//Connect to whoServer to send stats and port
+void WhoServerConnect(struct WorkersDataStructs *myData,File_Stats stats,int p){
     //Connect to the server
     int server_port,socket_fd;
     struct hostent *server_host;
@@ -109,15 +109,34 @@ void WhoServerConnect(struct WorkersDataStructs *myData,File_Stats stats){
 		perror("connect");
         exit(1);
 	}
-    char msg[100];
+    char msg[300];
     strcpy(msg,"Stats\n");
-    write(socket_fd,msg,sizeof(msg));
-    write(socket_fd,&stats,sizeof(stats));
+    write(socket_fd,msg,strlen("Stats\n"));
+    Stats_Port info;
+    info.f_stats = stats;
+    info.port_num = p;
+    //File_Stats_Print(&stats);
+    //Create the message to send
+    sprintf(msg,"%d-%d-%d %s %s %d %d %d %d %d",stats.file_date.day,stats.file_date.month,stats.file_date.year,
+    stats.Country,stats.Disease,stats.Age_counter[0],stats.Age_counter[1],stats.Age_counter[2],
+    stats.Age_counter[3],p);
+    int msg_len = strlen(msg);
+    printf("Message len is %d\n",msg_len);
+    //First send the length of the message
+    int res = write(socket_fd,&msg_len,sizeof(msg_len));    //Send port number and stats
+    if(res<sizeof(msg_len)){
+        printf("Something went wrong when sending size\n");
+    }
+    //Send the message
+    res = write(socket_fd,msg,msg_len+1);
+    if(res<msg_len+1){
+        printf("Something went wrong when sending the message\n");
+    }
     close(socket_fd);
 }
 
 //Send file statistics to the server
-void send_file_stats(char *server_fifo,queuenode *requests,struct WorkersDataStructs *myData){
+void send_file_stats(char *server_fifo,queuenode *requests,struct WorkersDataStructs *myData,int p){
     File_Stats stats_data;
     char directory[100];
     char path[100];
@@ -202,7 +221,7 @@ void send_file_stats(char *server_fifo,queuenode *requests,struct WorkersDataStr
         File_Stats stats_to_send;
         while(statsListPop(&filestats,&stats_to_send)){
             write(server_fifo_fd, &stats_to_send, sizeof(stats_to_send));
-            WhoServerConnect(myData,stats_to_send);
+            WhoServerConnect(myData,stats_to_send,p);
         }
     }
     closedir(dr);

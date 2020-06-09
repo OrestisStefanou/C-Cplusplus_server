@@ -1,7 +1,7 @@
 #include"network.h"
 #include"buffer.h"
 #include"pipe.h"
-#include"WhoServerDataStructs.h"
+#include"WhoServer_functions.h"
 
 #define BACKLOG 10
 #define perror2(s, e) fprintf(stderr, "%s: %s\n", s, strerror(e))
@@ -26,7 +26,10 @@ int query_socket,stats_socket;
 struct pollfd *pfds;
 
 int main(int argc, char const *argv[])
-{
+{   
+    //Initialize Hashtable
+    ServerHT_init(15);
+
     //Network variables
     int port,new_socket_fd,err;
     struct sockaddr_in address;
@@ -157,7 +160,7 @@ int main(int argc, char const *argv[])
                 }
                 //Convert IP address from binary to text form
                 inet_ntop(client_address.ss_family,get_in_addr((struct sockaddr*)&client_address),remoteIP, INET6_ADDRSTRLEN);
-                printf("New connection from:%s\n",remoteIP);
+                //printf("New connection from:%s\n",remoteIP);
                 //Lock mutex
                 if(err=pthread_mutex_lock(&mtx)){   //Lock mutex
                     perror2("pthread mutex lock",err);
@@ -185,7 +188,7 @@ int main(int argc, char const *argv[])
 
 
 void *serve_client(void *arg){
-    int err;
+    int err,res,i;
     BufferEntry clientInfo;
     printf("Thread started\n");
     while (1)
@@ -199,7 +202,7 @@ void *serve_client(void *arg){
         {
             pthread_cond_wait(&cvar,&mtx);  //If buffer is empty wait for signal
         }
-        printf("Thread handling the connection\n");
+        //printf("Thread handling the connection\n");
         //Get the info of the client to serve
         clientInfo = buffer_get();
         //Unlock the mutex
@@ -209,22 +212,43 @@ void *serve_client(void *arg){
             exit(EXIT_FAILURE);
         }
         char buffer[100];   //Buffer to get info of the incoming request
-        read(clientInfo.fd,buffer,sizeof(buffer));
-        if(strcmp(buffer,"port")==0){
-            int worker_port;
-            read(clientInfo.fd,&worker_port,sizeof(int));
-            printf("Worker is listening on port %d\n",worker_port);
+        memset(buffer,0,100);
+        i=0;
+        //Read the request
+        while(1){
+            read(clientInfo.fd,&buffer[i],1);
+            if(buffer[i]=='\n')
+                break;
+            i++;
         }
+        buffer[++i] = '\0';
         if(strcmp(buffer,"Stats\n")==0){
-            File_Stats stats;
-            read(clientInfo.fd,&stats,sizeof(stats));
+            Stats_Port stats_info;
+            int msg_len;
+            res = read(clientInfo.fd,&msg_len,sizeof(int)); //Get the length of the message
+            if(res<sizeof(int)){
+                printf("Something went wrong\n");
+            }
+            char msg[300];
+            memset(msg,0,300);
+            int bytes_read=0;
+            printf("Message len is %d\n",msg_len);
+            //Read until we get the whole message
+            while (bytes_read<msg_len)
+            {
+                res = read(clientInfo.fd,&msg[bytes_read],msg_len-bytes_read);
+                bytes_read+=res; 
+            }
 
             if(err=pthread_mutex_lock(&mtx)){   //Lock mutex
                 perror2("pthread mutex lock",err);
                 exit(EXIT_FAILURE);
             }
             //Insert the stats in the Hashtable
-            File_Stats_Print(&stats);
+            printf("%s\n",msg);
+            //File_Stats_Print(&stats_info.f_stats);
+            //printf("PORT is %d\n",stats_info.port_num);
+            //ServerHT_insert(clientInfo.address,stats_info.port_num,stats_info.f_stats);
 
             //Unlock the mutex
             if (err=pthread_mutex_unlock(&mtx))
@@ -236,6 +260,13 @@ void *serve_client(void *arg){
         else
         {
             printf("Got message %s\n",buffer);
+            int request_code = get_request_code(buffer);
+            if(request_code==3){    //Topk-AgeRanges
+                int error = topkRanges(buffer);
+                if(error==-1){
+                    printf("Wrong usage\n");
+                }
+            }
         }
         close(clientInfo.fd);
         memset(clientInfo.address,0,100);

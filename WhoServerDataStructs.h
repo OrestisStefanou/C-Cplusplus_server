@@ -40,6 +40,11 @@ int ServerHashFunction(char *c){
 
 //Insert an entry in the Hashtable
 void ServerHT_insert(char *a,int p,File_Stats stats){
+    //Remove '/' character from country
+    char temp_Country[25];
+    strcpy(temp_Country,stats.Country);
+    memset(stats.Country,0,25);
+    memcpy(stats.Country,temp_Country+1,strlen(temp_Country)-1);
     int index = ServerHashFunction(stats.Country);
 
     if(ServerHT[index]==NULL){

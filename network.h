@@ -13,6 +13,14 @@
 #include <signal.h>
 #include<arpa/inet.h>
 #include<poll.h>
+#include"pipe.h"
+
+//Struct that the worker sends to WhoServer
+struct stats_port{
+    File_Stats f_stats;
+    int port_num;
+};
+typedef struct stats_port Stats_Port;
 
 //Get sockaddr,IPv4 or IPv6
 void *get_in_addr(struct sockaddr *sa){
