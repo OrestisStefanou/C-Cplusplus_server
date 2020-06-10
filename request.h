@@ -43,24 +43,61 @@ struct PatientDischargesData{
 };
 /////////////////////////////
 
-void ageRangePrint(struct ageRangeStats stats){
+void ageRangePrint(struct ageRangeStats stats,int fd){
     if(stats.index==0){
         printf("0-20:%0.0f%c\n",stats.number,'%');
+        if (fd!=-1)
+        {
+            char response[100];
+            sprintf(response,"0-20:%0.0f%c\n",stats.number,'%');
+            int res = write(fd,response,strlen(response));
+            if(res<strlen(response)){
+                printf("Something went wrong during sendind the response\n");
+            }
+        }
+        
         return;
     }
 
     if(stats.index==1){
         printf("21-40:%0.0f%c\n",stats.number,'%');
+        if (fd!=-1)
+        {
+            char response[100];
+            sprintf(response,"21-40:%0.0f%c\n",stats.number,'%');
+            int res = write(fd,response,strlen(response));
+            if(res<strlen(response)){
+                printf("Something went wrong during sendind the response\n");
+            }
+        }
         return;
     }
 
     if(stats.index==2){
         printf("41-60:%0.0f%c\n",stats.number,'%');
+        if (fd!=-1)
+        {
+            char response[100];
+            sprintf(response,"41-60:%0.0f%c\n",stats.number,'%');
+            int res = write(fd,response,strlen(response));
+            if(res<strlen(response)){
+                printf("Something went wrong during sendind the response\n");
+            }
+        }
         return;
     }
 
     if(stats.index==3){
         printf("60+:%0.0f%c\n",stats.number,'%');
+        if (fd!=-1)
+        {
+            char response[100];
+            sprintf(response,"60+:%0.0f%c\n",stats.number,'%');
+            int res = write(fd,response,strlen(response));
+            if(res<strlen(response)){
+                printf("Something went wrong during sendind the response\n");
+            }
+        }
         return;
     }
 }

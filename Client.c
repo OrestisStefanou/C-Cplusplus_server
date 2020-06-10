@@ -53,6 +53,11 @@ int main(int argc, char const *argv[])
     memset(buffer,0,100);
     strcpy(buffer,"/topk-AgeRanges 4 China H1N1 01-01-1900 01-01-2050\n");
     write(socket_fd,buffer,strlen(buffer));
+    while (read(socket_fd,&buffer[0],1))
+    {
+        printf("%c",buffer[0]);
+    }
+    
     close(socket_fd);
     return 0;
 }

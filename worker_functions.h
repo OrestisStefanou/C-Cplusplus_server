@@ -112,9 +112,6 @@ void WhoServerConnect(struct WorkersDataStructs *myData,File_Stats stats,int p){
     char msg[300];
     strcpy(msg,"Stats\n");
     write(socket_fd,msg,strlen("Stats\n"));
-    Stats_Port info;
-    info.f_stats = stats;
-    info.port_num = p;
     //File_Stats_Print(&stats);
     //Create the message to send
     sprintf(msg,"%d-%d-%d %s %s %d %d %d %d %d",stats.file_date.day,stats.file_date.month,stats.file_date.year,

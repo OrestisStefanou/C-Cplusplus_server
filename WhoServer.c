@@ -244,7 +244,7 @@ void *serve_client(void *arg){
             sscanf(msg,"%d-%d-%d %s %s %d %d %d %d %d",&stats.file_date.day,&stats.file_date.month,&stats.file_date.year,
             stats.Country,stats.Disease,&stats.Age_counter[0],&stats.Age_counter[1],&stats.Age_counter[2],
             &stats.Age_counter[3],&worker_port);
-            
+
             if(err=pthread_mutex_lock(&mtx)){   //Lock mutex
                 perror2("pthread mutex lock",err);
                 exit(EXIT_FAILURE);
@@ -263,7 +263,7 @@ void *serve_client(void *arg){
             printf("Got message %s\n",buffer);
             int request_code = get_request_code(buffer);
             if(request_code==3){    //Topk-AgeRanges
-                int error = topkRanges(buffer);
+                int error = topkRanges(buffer,clientInfo.fd);
                 if(error==-1){
                     printf("Wrong usage\n");
                 }

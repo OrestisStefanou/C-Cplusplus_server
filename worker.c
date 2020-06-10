@@ -137,6 +137,8 @@ void terminate(int sig){
     freeFilesTree(myData.Filenames);
     freeDiseaseHT(myData.DiseaseHashTable,myData.hashtablesize);
     freeDirList(&myData.directories);
+    free(pfds);
+    close(listening_socket);
     exit(EXIT_SUCCESS);
 }
 
@@ -151,9 +153,10 @@ int main(int argc, char const *argv[])
     struct sockaddr_storage client_address;
     socklen_t client_address_len;
     char remoteIP[INET6_ADDRSTRLEN];
+    char buf[256];  //Buffer for client data
     //Poll set variables
     int fd_count = 0;
-    int fd_size = 5;
+    int fd_size = 5;    //Start with room for 5 connections(Will reallocate if necessary)
     pfds = malloc(sizeof *pfds * fd_size);  //Create the set 
 
     //CREATE A LISTENING SOCKET
@@ -271,8 +274,85 @@ int main(int argc, char const *argv[])
             sendPatientDischargesResult(server_fifo,request_queue,&myData);////Request queue has the user's request
         }
     }
-    printf("Stats finished\n");
+    //printf("Stats finished\n");
     //printf("Server address:%s and port:%d\n",myData.Server_Info.server_addr,myData.Server_Info.server_port);
+    
+    //Add listening socket to the set
+    pfds[0].fd = listening_socket;
+    pfds[0].events = POLLIN;    //Report ready to read on incoming connection
+
+    fd_count = 1;   //For the listener
+
+    printf("Worker waiting for connections\n");
+    //Main loop
+    while (1)
+    {
+        int poll_count = poll(pfds,fd_count,-1);
+
+        if(poll_count == -1){
+            perror("poll");
+            exit(1);
+        }
+
+        //Run through the existing connections looking for data to read
+        for(int i=0;i<fd_count;i++){
+            //Check if someone is ready to read
+            if(pfds[i].revents & POLLIN){
+                if(pfds[i].fd == listening_socket){
+                    //If listener is ready to read,handle new connection
+                    client_address_len = sizeof(client_address);
+                    new_socket = accept(listening_socket,(struct sockaddr *)&client_address,&client_address_len);
+
+                    if(new_socket == -1){
+                        perror("accept");
+                    }else{
+                        add_to_pfds(&pfds,new_socket,&fd_count,&fd_size);//Add the new socket to the set
+                        printf("Worker:New connection from %s\n",inet_ntop(client_address.ss_family,get_in_addr((struct sockaddr*)&client_address),remoteIP, INET6_ADDRSTRLEN));
+                    }
+
+                }else{
+                    //If not the listener,we are just a regular client
+                    //Read the request
+                    int k=0,nbytes,flag=0;
+                    memset(buf,256,0);
+                    while(1){
+                        nbytes = read(pfds[i].fd,&buf[k],1);
+                        if(buf[k]=='\n' || nbytes<=0){
+                            if(k==0){
+                                flag=1; //Got error or connection closed by client
+                            }
+                            break;
+                        }
+                        k++;
+                    }
+                    buf[++k] = '\0';
+
+                    int sender_fd = pfds[i].fd;
+
+                    if(nbytes <= 0 && flag==1){
+                        //Got error or connection closed by client
+                        if(nbytes == 0){
+                            //Connection closed
+                            printf("Worker:socket hung up\n");
+                        }else{
+                            perror("recv");
+                        }
+
+                        close(pfds[i].fd);
+
+                        del_from_pfds(pfds,i,&fd_count);
+                    }else
+                    {
+                        //We got some good data from a client
+                        printf("Worker got message:%s",buf);
+                    }
+                    
+                }
+            }
+        }
+    }
+    
+
     unlink(client_fifo);
     free(pfds);
     close(listening_socket);

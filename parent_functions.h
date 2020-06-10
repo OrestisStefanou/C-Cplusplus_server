@@ -188,7 +188,7 @@ int topkRanges(char *buf){
         if(i>=4){
             break;
         }
-        ageRangePrint(array[i]);
+        ageRangePrint(array[i],-1);
     }
 }
 
