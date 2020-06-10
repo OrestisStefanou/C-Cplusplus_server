@@ -222,8 +222,10 @@ void *serve_client(void *arg){
             i++;
         }
         buffer[++i] = '\0';
+
         if(strcmp(buffer,"Stats\n")==0){
-            Stats_Port stats_info;
+            File_Stats stats;
+            int worker_port;
             int msg_len;
             res = read(clientInfo.fd,&msg_len,sizeof(int)); //Get the length of the message
             if(res<sizeof(int)){
@@ -232,24 +234,23 @@ void *serve_client(void *arg){
             char msg[300];
             memset(msg,0,300);
             int bytes_read=0;
-            printf("Message len is %d\n",msg_len);
+            //printf("Message len is %d\n",msg_len);
             //Read until we get the whole message
             while (bytes_read<msg_len)
             {
                 res = read(clientInfo.fd,&msg[bytes_read],msg_len-bytes_read);
                 bytes_read+=res; 
             }
-
+            sscanf(msg,"%d-%d-%d %s %s %d %d %d %d %d",&stats.file_date.day,&stats.file_date.month,&stats.file_date.year,
+            stats.Country,stats.Disease,&stats.Age_counter[0],&stats.Age_counter[1],&stats.Age_counter[2],
+            &stats.Age_counter[3],&worker_port);
+            
             if(err=pthread_mutex_lock(&mtx)){   //Lock mutex
                 perror2("pthread mutex lock",err);
                 exit(EXIT_FAILURE);
             }
             //Insert the stats in the Hashtable
-            printf("%s\n",msg);
-            //File_Stats_Print(&stats_info.f_stats);
-            //printf("PORT is %d\n",stats_info.port_num);
-            //ServerHT_insert(clientInfo.address,stats_info.port_num,stats_info.f_stats);
-
+            ServerHT_insert(clientInfo.address,worker_port,stats);
             //Unlock the mutex
             if (err=pthread_mutex_unlock(&mtx))
             {

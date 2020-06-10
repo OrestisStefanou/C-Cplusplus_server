@@ -121,7 +121,7 @@ void WhoServerConnect(struct WorkersDataStructs *myData,File_Stats stats,int p){
     stats.Country,stats.Disease,stats.Age_counter[0],stats.Age_counter[1],stats.Age_counter[2],
     stats.Age_counter[3],p);
     int msg_len = strlen(msg);
-    printf("Message len is %d\n",msg_len);
+    //printf("Message len is %d\n",msg_len);
     //First send the length of the message
     int res = write(socket_fd,&msg_len,sizeof(msg_len));    //Send port number and stats
     if(res<sizeof(msg_len)){
