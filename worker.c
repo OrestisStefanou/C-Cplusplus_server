@@ -313,38 +313,29 @@ int main(int argc, char const *argv[])
                 }else{
                     //If not the listener,we are just a regular client
                     //Read the request
-                    int k=0,nbytes,flag=0;
+                    int flag=0;
                     memset(buf,256,0);
-                    while(1){
-                        nbytes = read(pfds[i].fd,&buf[k],1);
-                        if(buf[k]=='\n' || nbytes<=0){
-                            if(k==0){
-                                flag=1; //Got error or connection closed by client
-                            }
-                            break;
-                        }
-                        k++;
-                    }
-                    buf[++k] = '\0';
+                    flag = read_request(pfds[i].fd,buf);
 
                     int sender_fd = pfds[i].fd;
 
-                    if(nbytes <= 0 && flag==1){
-                        //Got error or connection closed by client
-                        if(nbytes == 0){
-                            //Connection closed
-                            printf("Worker:socket hung up\n");
-                        }else{
-                            perror("recv");
-                        }
-
+                    if(flag==-1){
+                        printf("Worker:socket hung up\n");
                         close(pfds[i].fd);
-
                         del_from_pfds(pfds,i,&fd_count);
                     }else
                     {
                         //We got some good data from a client
                         printf("Worker got message:%s",buf);
+                            memset(buf,256,0);
+                            //Read the information to complete the request
+                            struct dfData info;
+                            sscanf(buf,"%s %d-%d-%d %d-%d-%d %s\n",info.country,&info.entry_date.day,
+                            &info.entry_date.month,&info.entry_date.year,&info.exit_date.day,&info.exit_date.month
+                            ,&info.exit_date.year,info.virusName);
+                            //Send the result to the server
+                            printf("COMING HERE\n");
+                            send_df_results(sender_fd,info,&myData);
                     }
                     
                 }

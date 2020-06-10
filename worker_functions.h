@@ -226,6 +226,7 @@ void send_file_stats(char *server_fifo,queuenode *requests,struct WorkersDataStr
     return;
 }
 
+//Send results to the master
 void sendDiseaseFrequencyResult(char *server_fifo,queuenode *requests,struct WorkersDataStructs *myData){
     struct dfData info;
     int result=0;
@@ -264,6 +265,47 @@ void sendDiseaseFrequencyResult(char *server_fifo,queuenode *requests,struct Wor
     close(server_fifo_fd);   
 }
 
+//Send df results to WhoServer
+void send_df_results(int fd,struct dfData info,struct WorkersDataStructs *myData){
+    int result = 0,nbytes;
+    printf("Country:%s\n",info.country);
+    printf("Disease:%s\n",info.virusName);
+    print_date(&info.entry_date);
+    print_date(&info.exit_date);
+    RecordTreeptr root = getDiseaseHTvalue(myData->DiseaseHashTable,info.virusName,myData->hashtablesize);  //Get the root of the tree from the diseaseHT
+    for(int i=0;i<strlen(info.country);i++){
+        printf("%c",info.country[i]);
+    }
+    printf("\n");
+    for(int i=0;i<strlen(root->record->country);i++){
+        printf("%c",root->record->country[i]);
+    }
+    printf("\n");    
+    if(root==NULL){
+        //No data for this disease
+        result = -1;
+        nbytes = write(fd,&result,sizeof(int));  //Send -1 to the server
+        if(nbytes<sizeof(int)){
+            printf("Something went wrong\n");
+            return;
+        }
+    }
+
+    if(info.country[0]==0){//Country not given
+        result = RecordTreeCountWithDates(root,info.entry_date,info.exit_date); //Count the nodes that are between the dates given
+    }
+    else    //Country given
+    {
+        result = DiseaseFrequencyCount(root,info.entry_date,info.exit_date,info.country);
+    }
+
+    //Send the result to the server
+    printf("Result is %d\n",result);
+    nbytes = write(fd,&result,sizeof(result));
+    if(nbytes<sizeof(int)){
+        printf("Something went wrong\n");
+    }
+}
 
 void sendSearchPatientResult(char *server_fifo,queuenode *requests,struct WorkersDataStructs *myData){
     struct searchPatientData data_to_send;

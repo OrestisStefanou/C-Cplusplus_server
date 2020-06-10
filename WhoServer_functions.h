@@ -34,10 +34,6 @@ void Connect_to_Worker(char *server_name,int port){
         exit(1);
 	}
 
-    /* TODO: Put server interaction code here. For example, use
-     * write(socket_fd,,) and read(socket_fd,,) to send and receive messages
-     * with the client.
-     */
     char buffer[100];
     memset(buffer,0,100);
     strcpy(buffer,"/topk-AgeRanges 4 China H1N1 01-01-1900 01-01-2050\n");
@@ -215,9 +211,6 @@ int topkRanges(char *buf,int fd){
         printf("Something went wrong\n");
         return -1;
     }
-
-    //TEST CONNECTION WITH CLIENT
-    Connect_to_Worker(ht_entry->worker_address,ht_entry->worker_port);
 
     FileStatsTreePtr root = ht_entry->CountryStatsTree; //Get the root of the tree where the stats are
     data = topkAgeRangeCount(root,disease,entryDate,exitDate);

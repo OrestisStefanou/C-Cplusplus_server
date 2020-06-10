@@ -223,7 +223,7 @@ void *serve_client(void *arg){
         }
         buffer[++i] = '\0';
 
-        if(strcmp(buffer,"Stats\n")==0){
+        if(strcmp(buffer,"Stats\n")==0){    //Get the stats and port from the workers
             File_Stats stats;
             int worker_port;
             int msg_len;
@@ -263,10 +263,63 @@ void *serve_client(void *arg){
             printf("Got message %s\n",buffer);
             int request_code = get_request_code(buffer);
             if(request_code==3){    //Topk-AgeRanges
+                //Here i may have to lock the mutex
                 int error = topkRanges(buffer,clientInfo.fd);
                 if(error==-1){
                     printf("Wrong usage\n");
                 }
+            }
+
+            if(request_code == 2){//DiseaseFrequency
+                struct dfData info;
+                int result=0,sum=0,nbytes; //result from the worker,sum->final result
+                int error = fill_dfData(buffer,&info);
+                if(error==-1){
+                    write(clientInfo.fd,"Wrong Usage\n",13);    //Send error message
+                    printf("Wrong usage\n");
+                    close(clientInfo.fd);
+                    memset(clientInfo.address,0,100);
+                    continue;
+                }
+
+                //Check the dates
+                if(check_dates(info.entry_date,info.exit_date)){
+                    write(clientInfo.fd,"Wrong Usage\n",13);    //Send error message
+                    printf("Wrong usage\n");
+                    close(clientInfo.fd);
+                    memset(clientInfo.address,0,100);
+                    continue;                    
+                }
+
+                //if country not given send the request to all the workers
+                if(info.country[0]==0){
+                    //TODO:Sent the request and sum the results
+                }else
+                {
+                    //Country given.Send the request to the responsible worker
+                    ServerHT_Entry *ht_entry = ServerHT_get(info.country);
+                    //Send the request to the worker
+                    //send_message(ht_entry->worker_address,ht_entry->worker_port,"/df\n",0);
+                    //Create the message with the information needed
+                    char msg[300];
+                    sprintf(msg,"%s %d-%d-%d %d-%d-%d %s\n",info.country,info.entry_date.day,
+                    info.entry_date.month,info.entry_date.year,info.exit_date.day,info.exit_date.month
+                    ,info.exit_date.year,info.virusName);
+                    //Send the information to the worker
+                    int sock_fd = send_message(ht_entry->worker_address,ht_entry->worker_port,msg,1);
+                    if(sock_fd == -1){
+                        printf("Something went wrong during sending the message\n");
+                    }
+                    //Read the response from the worker
+                    nbytes = read(sock_fd,&result,sizeof(int));
+                    if(nbytes<4){
+                        printf("Something went wrong\n");
+                    }else{
+                        printf("%d\n",result);
+                    }
+                    
+                }
+                
             }
         }
         close(clientInfo.fd);
@@ -289,6 +342,7 @@ void signal_handler(int signal_number) {
     }
     free(pfds);
     //printf("Coming here\n");
+    ServerHT_free();
     close(query_socket);
     close(stats_socket);
     exit(0);
