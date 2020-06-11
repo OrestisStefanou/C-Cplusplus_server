@@ -315,7 +315,9 @@ int main(int argc, char const *argv[])
                     //Read the request
                     int flag=0;
                     memset(buf,256,0);
-                    flag = read_request(pfds[i].fd,buf);
+                    QueryInfo q_info;
+                    //Read the request with qeury info
+                    flag = read_QueryInfo(pfds[i].fd,buf,&q_info);
 
                     int sender_fd = pfds[i].fd;
 
@@ -327,15 +329,17 @@ int main(int argc, char const *argv[])
                     {
                         //We got some good data from a client
                         printf("Worker got message:%s",buf);
+                        if(strcmp(q_info.query,"df")==0){
                             memset(buf,256,0);
                             //Read the information to complete the request
                             struct dfData info;
-                            sscanf(buf,"%s %d-%d-%d %d-%d-%d %s\n",info.country,&info.entry_date.day,
-                            &info.entry_date.month,&info.entry_date.year,&info.exit_date.day,&info.exit_date.month
-                            ,&info.exit_date.year,info.virusName);
+                            strcpy(info.country,q_info.Country);
+                            strcpy(info.virusName,q_info.VirusName);
+                            info.entry_date = q_info.entry_date;
+                            info.exit_date = q_info.exit_date;
                             //Send the result to the server
-                            printf("COMING HERE\n");
                             send_df_results(sender_fd,info,&myData);
+                        }
                     }
                     
                 }

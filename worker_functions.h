@@ -273,14 +273,7 @@ void send_df_results(int fd,struct dfData info,struct WorkersDataStructs *myData
     print_date(&info.entry_date);
     print_date(&info.exit_date);
     RecordTreeptr root = getDiseaseHTvalue(myData->DiseaseHashTable,info.virusName,myData->hashtablesize);  //Get the root of the tree from the diseaseHT
-    for(int i=0;i<strlen(info.country);i++){
-        printf("%c",info.country[i]);
-    }
-    printf("\n");
-    for(int i=0;i<strlen(root->record->country);i++){
-        printf("%c",root->record->country[i]);
-    }
-    printf("\n");    
+   
     if(root==NULL){
         //No data for this disease
         result = -1;
@@ -291,7 +284,8 @@ void send_df_results(int fd,struct dfData info,struct WorkersDataStructs *myData
         }
     }
 
-    if(info.country[0]==0){//Country not given
+    if(info.country[0]=='0'){//Country not given
+        printf("Entering here\n");
         result = RecordTreeCountWithDates(root,info.entry_date,info.exit_date); //Count the nodes that are between the dates given
     }
     else    //Country given

@@ -15,6 +15,40 @@
 #include<poll.h>
 #include"pipe.h"
 
+//Struct to send query info to workers
+struct queryinfo{
+    char query[25];
+    char VirusName[30];
+    Date entry_date;
+    Date exit_date;
+    char Country[30];
+    int record_id;
+};
+typedef struct queryinfo QueryInfo;
+
+//Read query info from a socket.Returns -1 in case of error
+int read_QueryInfo(int fd,char *buf,QueryInfo *info){
+    int nbytes,k=0,flag=0;
+    while(1){
+        nbytes = read(fd,&buf[k],1);
+        if(buf[k]=='\n' || nbytes<=0){
+            if(k==0){
+                flag=1; //Got error or connection closed by client
+            }
+            break;
+        }
+        k++;
+    }
+    buf[++k] = '\0';
+    if(nbytes<=0 && flag==1){
+        return -1;
+    }
+    sscanf(buf,"%s %s %d-%d-%d %d-%d-%d %s %d\n",info->query,info->VirusName,&info->entry_date.day,
+    &info->entry_date.month,&info->entry_date.year,&info->exit_date.day,&info->exit_date.month,
+    &info->exit_date.year,info->Country,&info->record_id);
+    return 0;    
+}
+
 //Get sockaddr,IPv4 or IPv6
 void *get_in_addr(struct sockaddr *sa){
     if(sa->sa_family == AF_INET){

@@ -263,7 +263,7 @@ void *serve_client(void *arg){
             printf("Got message %s\n",buffer);
             int request_code = get_request_code(buffer);
             if(request_code==3){    //Topk-AgeRanges
-                //Here i may have to lock the mutex
+                //Here i have to lock the mutex
                 int error = topkRanges(buffer,clientInfo.fd);
                 if(error==-1){
                     printf("Wrong usage\n");
@@ -293,18 +293,44 @@ void *serve_client(void *arg){
 
                 //if country not given send the request to all the workers
                 if(info.country[0]==0){
-                    //TODO:Sent the request and sum the results
+                    strcpy(info.country,"000000000");   //So the worker knows country is not given
+                    //Sent the request and sum the results
+                    Addr_List_Node *temp = addr_list_head;
+                    while(temp!=NULL){
+                        //Send the request to the worker
+                        //Create the message with the information needed
+                        char msg[300];
+                        sprintf(msg,"%s %s %d-%d-%d %d-%d-%d %s %d\n","df",info.virusName,info.entry_date.day,
+                        info.entry_date.month,info.entry_date.year,info.exit_date.day,info.exit_date.month,
+                        info.exit_date.year,info.country,0);
+                        //Send the information to the worker
+                        int sock_fd = send_message(temp->addr,temp->port,msg,1);
+                        if(sock_fd == -1){
+                            printf("Something went wrong during sending the message\n");
+                        }
+                        //Read the response from the worker
+                        nbytes = read(sock_fd,&result,sizeof(int));
+                        if(nbytes<4){
+                            printf("Something went wrong\n");
+                        }else{
+                            sum+=result;
+                        }
+                        close(sock_fd);
+                        temp = temp->next;                        
+                    }
+                    //LOCK THE MUTEX HERE
+                    printf("%d\n",sum);
+                    //UNLCOK
                 }else
                 {
                     //Country given.Send the request to the responsible worker
                     ServerHT_Entry *ht_entry = ServerHT_get(info.country);
                     //Send the request to the worker
-                    //send_message(ht_entry->worker_address,ht_entry->worker_port,"/df\n",0);
                     //Create the message with the information needed
                     char msg[300];
-                    sprintf(msg,"%s %d-%d-%d %d-%d-%d %s\n",info.country,info.entry_date.day,
-                    info.entry_date.month,info.entry_date.year,info.exit_date.day,info.exit_date.month
-                    ,info.exit_date.year,info.virusName);
+                    sprintf(msg,"%s %s %d-%d-%d %d-%d-%d %s %d\n","df",info.virusName,info.entry_date.day,
+                    info.entry_date.month,info.entry_date.year,info.exit_date.day,info.exit_date.month,
+                    info.exit_date.year,info.country,0);
                     //Send the information to the worker
                     int sock_fd = send_message(ht_entry->worker_address,ht_entry->worker_port,msg,1);
                     if(sock_fd == -1){
@@ -315,9 +341,11 @@ void *serve_client(void *arg){
                     if(nbytes<4){
                         printf("Something went wrong\n");
                     }else{
+                        //LOCK THE MUTEXT
                         printf("%d\n",result);
+                        //UNLOCK THE MUTEX
                     }
-                    
+                    close(sock_fd);
                 }
                 
             }
