@@ -329,9 +329,9 @@ int main(int argc, char const *argv[])
                     {
                         //We got some good data from a client
                         printf("Worker got message:%s",buf);
-                        if(strcmp(q_info.query,"df")==0){
+                        if(strcmp(q_info.query,"df")==0){   //diseaseFrequency
                             memset(buf,256,0);
-                            //Read the information to complete the request
+                            //Get information to complete the request
                             struct dfData info;
                             strcpy(info.country,q_info.Country);
                             strcpy(info.virusName,q_info.VirusName);
@@ -339,6 +339,11 @@ int main(int argc, char const *argv[])
                             info.exit_date = q_info.exit_date;
                             //Send the result to the server
                             send_df_results(sender_fd,info,&myData);
+                        }
+
+                        if(strcmp(q_info.query,"spr")==0){  //SearchPatientRecord
+                            //Send the response to the server
+                            SearchPatientResponse(sender_fd,q_info.record_id,&myData);
                         }
                     }
                     

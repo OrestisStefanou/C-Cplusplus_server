@@ -22,7 +22,7 @@ struct queryinfo{
     Date entry_date;
     Date exit_date;
     char Country[30];
-    int record_id;
+    char record_id[10];
 };
 typedef struct queryinfo QueryInfo;
 
@@ -43,9 +43,9 @@ int read_QueryInfo(int fd,char *buf,QueryInfo *info){
     if(nbytes<=0 && flag==1){
         return -1;
     }
-    sscanf(buf,"%s %s %d-%d-%d %d-%d-%d %s %d\n",info->query,info->VirusName,&info->entry_date.day,
+    sscanf(buf,"%s %s %d-%d-%d %d-%d-%d %s %s\n",info->query,info->VirusName,&info->entry_date.day,
     &info->entry_date.month,&info->entry_date.year,&info->exit_date.day,&info->exit_date.month,
-    &info->exit_date.year,info->Country,&info->record_id);
+    &info->exit_date.year,info->Country,info->record_id);
     return 0;    
 }
 

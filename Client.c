@@ -51,12 +51,15 @@ int main(int argc, char const *argv[])
      */
     char buffer[100];
     memset(buffer,0,100);
-    strcpy(buffer,"/diseaseFrequency H1N1 01-01-1900 01-01-2025\n");
+    strcpy(buffer,"/searchPatientRecord 3000\n");
     write(socket_fd,buffer,strlen(buffer));
-    while (read(socket_fd,&buffer[0],1))
-    {
-        printf("%c",buffer[0]);
-    }
+    int response;
+    //read(socket_fd,&response,sizeof(int));
+    //printf("%d\n",response);
+    //while (read(socket_fd,&buffer[0],1))
+    //{
+    //    printf("%c",buffer[0]);
+    //}
     
     close(socket_fd);
     return 0;

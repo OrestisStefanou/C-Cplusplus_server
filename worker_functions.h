@@ -301,6 +301,7 @@ void send_df_results(int fd,struct dfData info,struct WorkersDataStructs *myData
     }
 }
 
+//Send results to master
 void sendSearchPatientResult(char *server_fifo,queuenode *requests,struct WorkersDataStructs *myData){
     struct searchPatientData data_to_send;
     data_to_send.patientAge=-1; //To know if the record found
@@ -337,6 +338,54 @@ void sendSearchPatientResult(char *server_fifo,queuenode *requests,struct Worker
     //Send the result to the server
     write(server_fifo_fd,&data_to_send,sizeof(data_to_send));
     close(server_fifo_fd);
+}
+
+//Send results to WhoServer
+void SearchPatientResponse(int fd,char *record_id,struct WorkersDataStructs *myData){
+    struct searchPatientData data_to_send;
+    data_to_send.patientAge=-1; //To know if the record found 
+    strcpy(data_to_send.id,"000");
+    strcpy(data_to_send.patientName,"000");
+    strcpy(data_to_send.patientLastName,"000");
+    strcpy(data_to_send.patientDisease,"000");
+    set_date(&data_to_send.patientEntryDate,0,0,0);
+    set_date(&data_to_send.patientExitDate,-1,0,0); //To know if patient exited
+
+    int nbytes;
+    char msg[300];
+    memset(msg,0,300);
+    //Search for the id in the trees
+    RecordTreesearchPatientId(myData->InPatients,record_id,&data_to_send,1);
+
+    if(data_to_send.patientAge==-1){    //Record not found
+        //Send the result to the server
+        //Create response message
+        sprintf(msg,"%s %s %s %s %d %d-%d-%d %d-%d-%d\n",data_to_send.id,data_to_send.patientName,
+        data_to_send.patientLastName,data_to_send.patientDisease,data_to_send.patientAge,
+        data_to_send.patientEntryDate.day,data_to_send.patientEntryDate.month,data_to_send.patientEntryDate.year
+        ,data_to_send.patientExitDate.day,data_to_send.patientExitDate.month,data_to_send.patientExitDate.year);
+        
+        nbytes = write(fd,msg,strlen(msg));
+        if(nbytes<strlen(msg)){
+            printf("Something went wrong during sending the response\n");
+        }
+        return;   
+    }
+
+    //Check if Patient Exited
+    RecordTreesearchPatientId(myData->OutPatients,record_id,&data_to_send,0);
+    
+    //Send the result to the server
+    //Create response message
+    sprintf(msg,"%s %s %s %s %d %d-%d-%d %d-%d-%d\n",data_to_send.id,data_to_send.patientName,
+    data_to_send.patientLastName,data_to_send.patientDisease,data_to_send.patientAge,
+    data_to_send.patientEntryDate.day,data_to_send.patientEntryDate.month,data_to_send.patientEntryDate.year
+    ,data_to_send.patientExitDate.day,data_to_send.patientExitDate.month,data_to_send.patientExitDate.year);
+    
+    nbytes = write(fd,msg,strlen(msg));
+    if(nbytes<strlen(msg)){
+        printf("Something went wrong during sending the response\n");
+    }
 }
 
 void sendPatientDischargesResult(char *server_fifo,queuenode *requests,struct WorkersDataStructs *myData){

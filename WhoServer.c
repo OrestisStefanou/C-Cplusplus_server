@@ -300,9 +300,9 @@ void *serve_client(void *arg){
                         //Send the request to the worker
                         //Create the message with the information needed
                         char msg[300];
-                        sprintf(msg,"%s %s %d-%d-%d %d-%d-%d %s %d\n","df",info.virusName,info.entry_date.day,
+                        sprintf(msg,"%s %s %d-%d-%d %d-%d-%d %s %s\n","df",info.virusName,info.entry_date.day,
                         info.entry_date.month,info.entry_date.year,info.exit_date.day,info.exit_date.month,
-                        info.exit_date.year,info.country,0);
+                        info.exit_date.year,info.country,"000");
                         //Send the information to the worker
                         int sock_fd = send_message(temp->addr,temp->port,msg,1);
                         if(sock_fd == -1){
@@ -320,6 +320,7 @@ void *serve_client(void *arg){
                     }
                     //LOCK THE MUTEX HERE
                     printf("%d\n",sum);
+                    write(clientInfo.fd,&sum,sizeof(int));
                     //UNLCOK
                 }else
                 {
@@ -328,9 +329,9 @@ void *serve_client(void *arg){
                     //Send the request to the worker
                     //Create the message with the information needed
                     char msg[300];
-                    sprintf(msg,"%s %s %d-%d-%d %d-%d-%d %s %d\n","df",info.virusName,info.entry_date.day,
+                    sprintf(msg,"%s %s %d-%d-%d %d-%d-%d %s %s\n","df",info.virusName,info.entry_date.day,
                     info.entry_date.month,info.entry_date.year,info.exit_date.day,info.exit_date.month,
-                    info.exit_date.year,info.country,0);
+                    info.exit_date.year,info.country,"000");
                     //Send the information to the worker
                     int sock_fd = send_message(ht_entry->worker_address,ht_entry->worker_port,msg,1);
                     if(sock_fd == -1){
@@ -343,12 +344,69 @@ void *serve_client(void *arg){
                     }else{
                         //LOCK THE MUTEXT
                         printf("%d\n",result);
+                        write(clientInfo.fd,&result,sizeof(int));
                         //UNLOCK THE MUTEX
                     }
                     close(sock_fd);
                 }
                 
             }
+
+            if (request_code==4)    //searchPatientRecord
+            {
+                char rID[10];
+                int error = getSearchPatientRecordId(buffer,rID);
+                int flag=0,nbytes;
+                if(error==-1){
+                    write(clientInfo.fd,"Wrong Usage\n",13);    //Send error message
+                    printf("Wrong usage\n");
+                    close(clientInfo.fd);
+                    memset(clientInfo.address,0,100);
+                    continue;
+                }
+                //Sent the request to all the workers
+                Addr_List_Node *temp = addr_list_head;
+                while(temp!=NULL){
+                    //Send the request to the worker
+                    //Create the message with the information needed
+                    char msg[300];
+                    sprintf(msg,"%s %s %d-%d-%d %d-%d-%d %s %s\n","spr","0",0,0,0,0,0,0,"0",rID);
+                    //Send the information to the worker
+                    int sock_fd = send_message(temp->addr,temp->port,msg,1);
+                    if(sock_fd == -1){
+                        printf("Something went wrong during sending the message\n");
+                    }
+                    //Read the response from the worker
+                    struct searchPatientData response_info;
+                    memset(msg,0,300);
+                    read_request(sock_fd,msg);  //Read reponse
+                    //Get the information from the response
+                    sscanf(msg,"%s %s %s %s %d %d-%d-%d %d-%d-%d\n",response_info.id,response_info.patientName,
+                    response_info.patientLastName,response_info.patientDisease,&response_info.patientAge,
+                    &response_info.patientEntryDate.day,&response_info.patientEntryDate.month,&response_info.patientEntryDate.year
+                    ,&response_info.patientExitDate.day,&response_info.patientExitDate.month,&response_info.patientExitDate.year);
+                    
+                    if(response_info.patientAge!=-1){
+                        //Record found
+                        if(response_info.patientExitDate.day!=-1){   //There is an exit date
+                            printf("%s %s %s %s %d %d-%d-%d %d-%d-%d\n",response_info.id,response_info.patientName,response_info.patientLastName,response_info.patientDisease,response_info.patientAge,response_info.patientEntryDate.day,response_info.patientEntryDate.month,response_info.patientEntryDate.year,response_info.patientExitDate.day,response_info.patientExitDate.month,response_info.patientExitDate.year);
+                        }
+                        else    //There is no exit date
+                        {
+                            printf("%s %s %s %s %d %d-%d-%d --\n",response_info.id,response_info.patientName,response_info.patientLastName,response_info.patientDisease,response_info.patientAge,response_info.patientEntryDate.day,response_info.patientEntryDate.month,response_info.patientEntryDate.year);
+                        }
+                        flag=1;
+                        close(sock_fd);
+                        break;
+                    }
+                    close(sock_fd);
+                    temp = temp->next;                        
+                }
+                if(flag==0){
+                    printf("Record not found\n");
+                }
+            }
+            
         }
         close(clientInfo.fd);
         memset(clientInfo.address,0,100);
