@@ -489,7 +489,7 @@ int main(int argc, char const *argv[])
             stats.totalRequests++;
             struct PatientDischargesData data;
             int error = fillPatientDischargesData(user_request,&data);
-            char newRequest[100];
+            char newRequest[200];
             if(error==-1){
                 stats.failedRequests++;
                 printf("Wrong usage(type help for info)\n");

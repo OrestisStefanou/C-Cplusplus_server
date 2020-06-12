@@ -235,4 +235,176 @@ int topkRanges(char *buf,int fd){
         ageRangePrint(array[i],fd);
     }
 }
+
+//Find the patients who got in the hospital and send the results to the client
+int numtPatientAdmissions(char *buf,int fd){
+    int i=0,j=0;
+    char virus[25];
+    char country[25];
+    Date entryDate;
+    Date exitDate;
+    char temp_date[5];
+
+    //Skip request command
+    while(buf[i]!=' ' && buf[i]!='\n'){
+        i++;
+    }
+    if(buf[i]=='\n'){
+        return -1;
+    }
+    i++;
+
+    //Get disease
+    while(buf[i]!=' ' && buf[i]!='\n'){
+        virus[j] = buf[i];
+        j++;
+        i++;
+    }
+    if(buf[i]=='\n'){
+        return -1;
+    }
+    i++;
+    virus[j]='\0';
+    
+    //Get enter date
+    j=0;
+    //get day
+    while(buf[i]!='-' && buf[i]!='\n'){
+        temp_date[j]=buf[i];
+        j++;
+        i++;
+    }
+    if(buf[i]=='\n'){
+        return -1;
+    }
+    temp_date[j]='\0';
+    entryDate.day=atoi(temp_date);
+    i++;
+    j=0;
+    //get month
+    while(buf[i]!='-' && buf[i]!='\n'){
+        temp_date[j]=buf[i];
+        j++;
+        i++;
+    }
+    if(buf[i]=='\n'){
+        return -1;
+    }
+    temp_date[j]='\0';
+    entryDate.month=atoi(temp_date);
+    i++;
+    j=0;
+    //get year
+    while(buf[i]!=' ' && buf[i]!='\n'){
+        temp_date[j]=buf[i];
+        j++;
+        i++;
+    }
+    if(buf[i]=='\n'){
+        return -1;
+    }
+    temp_date[j]='\0';
+    entryDate.year=atoi(temp_date);
+    i++;
+
+    //Get exit date
+    j=0;
+    //get day
+    while(buf[i]!='-' && buf[i]!='\n'){
+        temp_date[j]=buf[i];
+        j++;
+        i++;
+    }
+    if(buf[i]=='\n'){
+        return -1;
+    }
+    temp_date[j]='\0';
+    exitDate.day=atoi(temp_date);
+    i++;
+    j=0;
+    //get month
+    while(buf[i]!='-' && buf[i]!='\n'){
+        temp_date[j]=buf[i];
+        j++;
+        i++;
+    }
+    if(buf[i]=='\n'){
+        return -1;
+    }
+    temp_date[j]='\0';
+    exitDate.month=atoi(temp_date);
+    i++;
+    j=0;
+    //get year
+    while(buf[i]!='\n' && buf[i]!=' '){
+        temp_date[j]=buf[i];
+        j++;
+        i++;
+    }
+    temp_date[j]='\0';
+    exitDate.year=atoi(temp_date);
+
+    ServerHT_Entry *ht_entry;
+
+    if(buf[i]=='\n'){   //Country not given
+        int sum;
+        FileStatsTreePtr root;
+        //Go through all the trees in the Hashtable
+        //LOCK THE MUTEX HERE(I THINK)
+        for(int i=0;i<ServerHT_size;i++){
+            ht_entry = ServerHT[i];
+            while(ht_entry!=NULL){
+                root = ht_entry->CountryStatsTree;  //Get the root of the tree
+                sum = countAdmissionPatients(root,virus,entryDate,exitDate);    //CountAdmissionPatients of this country
+                if(sum>0){
+                    //Lock the mutex
+                    printf("%s %d\n",ServerHT[i]->country,sum);
+                    //Unlock the mutex
+                    //Create response message and send it to the user
+                    char response_msg[100];
+                    sprintf(response_msg,"%s %d\n",ServerHT[i]->country,sum);
+                    int res = write(fd,response_msg,strlen(response_msg));
+                    if(res<strlen(response_msg)){
+                        return -1;
+                    }
+                }
+                ht_entry = ht_entry->next;
+            }
+        }
+        return 0;
+    }
+
+    //Get country
+    i++;
+    j=0;
+    while(buf[i]!=' ' && buf[i]!='\n'){
+        country[j] = buf[i];
+        j++;
+        i++;
+    }
+    if(buf[i]==' '){
+        return -1;
+    }
+    i++;
+    country[j]='\0';
+    
+    ht_entry = ServerHT_get(country);    //Get the index of the country in the HT
+    if(ht_entry==NULL){
+        printf("There are no data for this country\n");
+        return -1;
+    }
+    FileStatsTreePtr root=ht_entry->CountryStatsTree;   //Get the root of the tree
+    int sum=countAdmissionPatients(root,virus,entryDate,exitDate);  //Count admission Patients
+    //Lock the mutex
+    printf("%s %d\n",country,sum);
+    //Unlock the mutex
+    //Create response message to send the client
+    char response_msg[100];
+    sprintf(response_msg,"%s %d\n",country,sum);
+    int res = write(fd,response_msg,strlen(response_msg));
+    if(res<strlen(response_msg)){
+        return -1;
+    }
+    return 0;  
+}
 #endif /* WHOSERVER_FUNCTIONS_H_ */

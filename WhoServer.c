@@ -389,11 +389,23 @@ void *serve_client(void *arg){
                     if(response_info.patientAge!=-1){
                         //Record found
                         if(response_info.patientExitDate.day!=-1){   //There is an exit date
+                            //Lock the mutex
                             printf("%s %s %s %s %d %d-%d-%d %d-%d-%d\n",response_info.id,response_info.patientName,response_info.patientLastName,response_info.patientDisease,response_info.patientAge,response_info.patientEntryDate.day,response_info.patientEntryDate.month,response_info.patientEntryDate.year,response_info.patientExitDate.day,response_info.patientExitDate.month,response_info.patientExitDate.year);
+                            //Unlock the mutex
+                            char response_msg[300];
+                            //Create response to send the client
+                            sprintf(response_msg,"%s %s %s %s %d %d-%d-%d %d-%d-%d\n",response_info.id,response_info.patientName,response_info.patientLastName,response_info.patientDisease,response_info.patientAge,response_info.patientEntryDate.day,response_info.patientEntryDate.month,response_info.patientEntryDate.year,response_info.patientExitDate.day,response_info.patientExitDate.month,response_info.patientExitDate.year);
+                            write(clientInfo.fd,response_msg,strlen(response_msg));
                         }
                         else    //There is no exit date
                         {
+                            //Lock the mutex
                             printf("%s %s %s %s %d %d-%d-%d --\n",response_info.id,response_info.patientName,response_info.patientLastName,response_info.patientDisease,response_info.patientAge,response_info.patientEntryDate.day,response_info.patientEntryDate.month,response_info.patientEntryDate.year);
+                            //Unlock the mutex
+                            char response_msg[300];
+                            //Create response message to send the client
+                            sprintf(response_msg,"%s %s %s %s %d %d-%d-%d --\n",response_info.id,response_info.patientName,response_info.patientLastName,response_info.patientDisease,response_info.patientAge,response_info.patientEntryDate.day,response_info.patientEntryDate.month,response_info.patientEntryDate.year);
+                            write(clientInfo.fd,response_msg,strlen(response_msg));
                         }
                         flag=1;
                         close(sock_fd);
@@ -403,9 +415,24 @@ void *serve_client(void *arg){
                     temp = temp->next;                        
                 }
                 if(flag==0){
+                    //Lock the mutex
                     printf("Record not found\n");
+                    //Unlock the mutex
+                    //Send response message to the client
+                    write(clientInfo.fd,"Record not found\n",strlen("Record not found\n"));
                 }
             }
+
+            if (request_code==5)    //NumPatientAdmissions
+            {
+                    int error = numtPatientAdmissions(buffer,clientInfo.fd);
+                    if (error==-1)
+                    {
+                        printf("Error during executing the command(Wrong Usage or no Data\n");
+                        write(clientInfo.fd,"Error\n",strlen("Error\n"));
+                    }
+            }
+            
             
         }
         close(clientInfo.fd);
