@@ -433,7 +433,96 @@ void *serve_client(void *arg){
                     }
             }
             
-            
+            if(request_code==6){    //NumPatientDischarges
+                char response[100];
+                struct PatientDischargesData info;
+                int nbytes;
+                int error = fillPatientDischargesData(buffer,&info);
+
+                if(error==-1){  //Wrong usage
+                    printf("Wrong Usage\n");
+                    write(clientInfo.fd,"Wrong Usage\n",strlen("Wrong usage\n"));   //Send client error message
+                    close(clientInfo.fd);
+                    memset(clientInfo.address,0,100);
+                    continue;
+                }
+
+                //Check the dates
+                if(check_dates(info.entry_date,info.exit_date)){
+                    write(clientInfo.fd,"Wrong Usage\n",strlen("Wrong usage\n"));    //Send client error message
+                    printf("Wrong usage\n");
+                    close(clientInfo.fd);
+                    memset(clientInfo.address,0,100);
+                    continue;                    
+                }
+
+                //If Country not given send the request to all the workers
+                if(info.countryName[0]==0){
+                    //Sent the request and sum the results
+                    ServerHT_Entry *ht_entry;
+                    for(int i=0;i<ServerHT_size;i++){
+                        ht_entry = ServerHT[i];
+                        while(ht_entry!=NULL){
+                            //Send the request to the worker
+                            //Create the message with the information needed
+                            char msg[300];
+                            strcpy(info.countryName,ht_entry->country);
+                            sprintf(msg,"%s %s %d-%d-%d %d-%d-%d %s %s\n","npd",info.virusName,info.entry_date.day,
+                            info.entry_date.month,info.entry_date.year,info.exit_date.day,info.exit_date.month,
+                            info.exit_date.year,info.countryName,"000");
+                            //Send the information to the worker
+                            int sock_fd = send_message(ht_entry->worker_address,ht_entry->worker_port,msg,1);
+                            if(sock_fd == -1){
+                                printf("Something went wrong during sending the message\n");
+                            }
+                            //Read the response from the worker
+                            memset(response,0,100);
+                            error = read_request(sock_fd,response);
+                            if(error==-1){
+                                printf("Something went wrong\n");
+                            }else{
+                                printf("%s",response);  //Print the result
+                                nbytes = write(clientInfo.fd,response,strlen(response)); //Send the result to the client
+                                if(nbytes<strlen(response)){
+                                    printf("Something went wrong during sending the response\n");
+                                }
+                            }
+                            close(sock_fd);
+                            ht_entry = ht_entry->next;
+                        }                        
+                    }
+                }else
+                {
+                    //Country given.Send the request to the responsible worker
+                    ServerHT_Entry *ht_entry = ServerHT_get(info.countryName);
+                    //Send the request to the worker
+                    //Create the message with the information needed
+                    char msg[300];
+                    sprintf(msg,"%s %s %d-%d-%d %d-%d-%d %s %s\n","npd",info.virusName,info.entry_date.day,
+                    info.entry_date.month,info.entry_date.year,info.exit_date.day,info.exit_date.month,
+                    info.exit_date.year,info.countryName,"000");
+                    //Send the information to the worker
+                    int sock_fd = send_message(ht_entry->worker_address,ht_entry->worker_port,msg,1);
+                    if(sock_fd == -1){
+                        printf("Something went wrong during sending the message\n");
+                    }
+                    //Read the response from the worker
+                    memset(response,0,100);
+                    error = read_request(sock_fd,response);
+                    if(error==-1){
+                        printf("Something went wrong\n");
+                    }else{
+                        //LOCK THE MUTEXT
+                        printf("%s",response);
+                        nbytes = write(clientInfo.fd,response,strlen(response)); //Send the result to the client
+                        if(nbytes<strlen(response)){
+                            printf("Something went wrong during sending the response\n");
+                        }
+                        //UNLOCK THE MUTEX
+                    }
+                    close(sock_fd);
+                }                
+            }
         }
         close(clientInfo.fd);
         memset(clientInfo.address,0,100);

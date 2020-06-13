@@ -345,6 +345,18 @@ int main(int argc, char const *argv[])
                             //Send the response to the server
                             SearchPatientResponse(sender_fd,q_info.record_id,&myData);
                         }
+
+                        if (strcmp(q_info.query,"npd")==0)  //NumPatientDischarges
+                        {   
+                            struct PatientDischargesData info;
+                            strcpy(info.countryName,q_info.Country);
+                            strcpy(info.virusName,q_info.VirusName);
+                            info.entry_date = q_info.entry_date;
+                            info.exit_date = q_info.exit_date;
+                            //Send results to the server
+                            NumPatientDischarges(sender_fd,info,&myData);
+                        }
+                        
                     }
                     
                 }

@@ -51,7 +51,7 @@ int main(int argc, char const *argv[])
      */
     char buffer[100];
     memset(buffer,0,100);
-    strcpy(buffer,"/numPatientAdmissions H1N1 01-01-1900 01-01-2050\n");
+    strcpy(buffer,"/numPatientDischarges H1N1 01-01-1900 01-01-2050 USA\n");
     write(socket_fd,buffer,strlen(buffer));
     int response;
     //read(socket_fd,&response,sizeof(int));

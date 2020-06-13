@@ -388,6 +388,7 @@ void SearchPatientResponse(int fd,char *record_id,struct WorkersDataStructs *myD
     }
 }
 
+//Send to master
 void sendPatientDischargesResult(char *server_fifo,queuenode *requests,struct WorkersDataStructs *myData){
     struct PatientDischargesData data_to_read;
     char request[100];
@@ -411,5 +412,19 @@ void sendPatientDischargesResult(char *server_fifo,queuenode *requests,struct Wo
     //Send the result to the server
     write(server_fifo_fd,&result,sizeof(result));
     close(server_fifo_fd);
+}
+
+//Send result to Server
+void NumPatientDischarges(int fd,struct PatientDischargesData data_to_read,struct WorkersDataStructs *myData){
+    //Count the patients
+    int result=PatientDischargesCount(myData->OutPatients,data_to_read.entry_date,data_to_read.exit_date,data_to_read.countryName,data_to_read.virusName);
+    char response[100];
+    //Create response message
+    sprintf(response,"%s:%d\n",data_to_read.countryName,result);
+    //Send the result to the server
+    int nbytes = write(fd,response,strlen(response));
+    if(nbytes<strlen(response)){
+        printf("Something went wrong during sending the response\n");
+    }    
 }
 #endif /* WORKER_FUNCTIONS_H_ */
