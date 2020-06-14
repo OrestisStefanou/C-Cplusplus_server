@@ -12,7 +12,7 @@ void *serve_client(void *arg);
 //Siganl handler for SIGTERM AND SIGINT signals
 void signal_handler(int signal_number);
 
-int number_of_threads = 4;  //Get this from command line arg
+int number_of_threads;  //Get this from command line arg
 
 //Network variables
 int query_socket,stats_socket;
@@ -26,7 +26,7 @@ int main(int argc, char const *argv[])
     ServerHT_init(15);
 
     //Network variables
-    int port,new_socket_fd,err;
+    int query_port,new_socket_fd,err;
     struct sockaddr_in address;
     struct sockaddr_storage client_address;
     socklen_t client_address_len;
@@ -38,27 +38,30 @@ int main(int argc, char const *argv[])
     pfds = malloc(sizeof *pfds * fd_size); //Create set to monitor the 2 listening sockets    
 
     //Check command line arguments
-    if (argc < 2)
+    if (argc != 9)
     {
-        printf("Please give port number and buffer size\n");
+        printf("Wrong usage\n");
         exit(EXIT_FAILURE);
     }
+
+    number_of_threads = atoi(argv[6]);
 
     pthreads = malloc(number_of_threads * sizeof(pthread_t));   //Create the array of thread ids
     
     //Create file descriptor buffer
-    buffer_size = atoi(argv[2]);
+    buffer_size = atoi(argv[8]);
     buffer_init();  //Initialize the buffer
 
     //Initialize condition variable
     pthread_cond_init(&cvar,NULL);        
 
-    port = atoi(argv[1]);   //Port number to listen
+    query_port = atoi(argv[2]);   //Port number to listen
+    int stats_port = atoi(argv[4]);
 
     //Initialize IPv4 address
     memset(&address,0,sizeof(address));
     address.sin_family = AF_INET;
-    address.sin_port = htons(port);
+    address.sin_port = htons(query_port);
     address.sin_addr.s_addr = INADDR_ANY;
 
     //Create the threads
@@ -91,7 +94,7 @@ int main(int argc, char const *argv[])
     //Initialize IPv4 address
     memset(&address,0,sizeof(address));
     address.sin_family = AF_INET;
-    address.sin_port = htons(port+1);   //CHANGE THIS TO THE PORT GIVEN FROM CMD LINE
+    address.sin_port = htons(stats_port);   //CHANGE THIS TO THE PORT GIVEN FROM CMD LINE
     address.sin_addr.s_addr = INADDR_ANY;
 
     //Create the stats listening socket
@@ -324,7 +327,9 @@ void *serve_client(void *arg){
                         perror2("pthread mutex unlock\n",err);
                         exit(EXIT_FAILURE);
                     }
-                    write(clientInfo.fd,&sum,sizeof(int));
+                    char response_message[50];
+                    sprintf(response_message,"%d\n",sum);
+                    write(clientInfo.fd,response_message,strlen(response_message));
                 }else
                 {
                     //Country given.Send the request to the responsible worker
@@ -357,7 +362,9 @@ void *serve_client(void *arg){
                             perror2("pthread mutex unlock\n",err);
                             exit(EXIT_FAILURE);
                         }
-                        write(clientInfo.fd,&result,sizeof(int));
+                        char response_message[50];
+                        sprintf(response_message,"%d\n",result);
+                        write(clientInfo.fd,&response_message,strlen(response_message));
                     }
                     close(sock_fd);
                 }
