@@ -10,7 +10,7 @@ program3: WhoServer.c
 	gcc -o WhoServer WhoServer.c -pthread
 
 program4: Client.c 
-	gcc -o Client Client.c
+	gcc -o Client Client.c -pthread
 clean:
 	rm worker master WhoServer Client
 	rm -r logfiles
