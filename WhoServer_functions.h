@@ -5,6 +5,9 @@
 #include"WhoServerDataStructs.h"
 #include"request.h"
 
+#define perror2(s, e) fprintf(stderr, "%s: %s\n", s, strerror(e))
+
+
 //Send a request to a Worker
 void Connect_to_Worker(char *server_name,int port){
     int server_port,socket_fd;
@@ -196,13 +199,6 @@ int topkRanges(char *buf,int fd){
     }
     temp_date[j]='\0';
     exitDate.year=atoi(temp_date);
-    //printf("K=%d\n",k);
-    //printf("Country:%s\n",country);
-    //printf("Disease:%s\n",disease);
-    //printf("Entry date:");
-    //print_date(&entryDate);
-    //printf("Exit date:");
-    //print_date(&exitDate);
 
     struct topkAgeRangeData data;
     struct ageRangeStats array[4];
@@ -227,12 +223,25 @@ int topkRanges(char *buf,int fd){
         num = data.total_patients/array[i].number;
         array[i].number = 100 / num; 
     }
+
+    int err;
+    //Lock the mutex
+    if(err=pthread_mutex_lock(&mtx)){   //Lock mutex
+        perror2("pthread mutex lock",err);
+        exit(EXIT_FAILURE);
+    }
     //Print the results
     for(int i=0;i<k;i++){
         if(i>=4){
             break;
         }
         ageRangePrint(array[i],fd);
+    }
+    //Unlock the mutex
+    if (err=pthread_mutex_unlock(&mtx))
+    {
+        perror2("pthread mutex unlock\n",err);
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -345,21 +354,24 @@ int numtPatientAdmissions(char *buf,int fd){
     exitDate.year=atoi(temp_date);
 
     ServerHT_Entry *ht_entry;
+    int err;
 
     if(buf[i]=='\n'){   //Country not given
         int sum;
         FileStatsTreePtr root;
         //Go through all the trees in the Hashtable
-        //LOCK THE MUTEX HERE(I THINK)
+        //Lock the mutex
+        if(err=pthread_mutex_lock(&mtx)){   //Lock mutex
+            perror2("pthread mutex lock",err);
+            exit(EXIT_FAILURE);
+        }
         for(int i=0;i<ServerHT_size;i++){
             ht_entry = ServerHT[i];
             while(ht_entry!=NULL){
                 root = ht_entry->CountryStatsTree;  //Get the root of the tree
                 sum = countAdmissionPatients(root,virus,entryDate,exitDate);    //CountAdmissionPatients of this country
                 if(sum>0){
-                    //Lock the mutex
                     printf("%s %d\n",ServerHT[i]->country,sum);
-                    //Unlock the mutex
                     //Create response message and send it to the user
                     char response_msg[100];
                     sprintf(response_msg,"%s %d\n",ServerHT[i]->country,sum);
@@ -370,6 +382,12 @@ int numtPatientAdmissions(char *buf,int fd){
                 }
                 ht_entry = ht_entry->next;
             }
+        }
+        //Unlock the mutex
+        if (err=pthread_mutex_unlock(&mtx))
+        {
+            perror2("pthread mutex unlock\n",err);
+            exit(EXIT_FAILURE);
         }
         return 0;
     }
@@ -396,8 +414,17 @@ int numtPatientAdmissions(char *buf,int fd){
     FileStatsTreePtr root=ht_entry->CountryStatsTree;   //Get the root of the tree
     int sum=countAdmissionPatients(root,virus,entryDate,exitDate);  //Count admission Patients
     //Lock the mutex
+    if(err=pthread_mutex_lock(&mtx)){   //Lock mutex
+        perror2("pthread mutex lock",err);
+        exit(EXIT_FAILURE);
+    }
     printf("%s %d\n",country,sum);
     //Unlock the mutex
+    if (err=pthread_mutex_unlock(&mtx))
+    {
+        perror2("pthread mutex unlock\n",err);
+        exit(EXIT_FAILURE);
+    }
     //Create response message to send the client
     char response_msg[100];
     sprintf(response_msg,"%s %d\n",country,sum);

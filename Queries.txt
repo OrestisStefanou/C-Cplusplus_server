@@ -1,0 +1,7 @@
+/diseaseFrequency H1N1 01-01-2000 01-01-2030 China
+/diseaseFrequency H1N1 01-01-2000 01-01-2030
+/topk-AgeRanges 4 USA H1N1 01-01-2000 01-01-2030
+/searchPatientRecord 35
+/searchPatientRecord 5000
+/numPatientAdmissions H1N1 01-01-2000 01-01-2030 China
+/numPatientDischarges H1N1 01-01-2000 01-01-2030 China

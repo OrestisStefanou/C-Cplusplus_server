@@ -12,11 +12,6 @@ void *serve_client(void *arg);
 //Siganl handler for SIGTERM AND SIGINT signals
 void signal_handler(int signal_number);
 
-pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;    //Initialize thread mutex
-
-pthread_cond_t cvar;    //Condition variable
-pthread_t *pthreads;    //Array with thread ids
-
 int number_of_threads = 4;  //Get this from command line arg
 
 //Network variables
@@ -260,10 +255,9 @@ void *serve_client(void *arg){
         }        
         else
         {
-            printf("Got message %s\n",buffer);
+            //printf("Got message %s\n",buffer);
             int request_code = get_request_code(buffer);
             if(request_code==3){    //Topk-AgeRanges
-                //Here i have to lock the mutex
                 int error = topkRanges(buffer,clientInfo.fd);
                 if(error==-1){
                     printf("Wrong usage\n");
@@ -318,10 +312,19 @@ void *serve_client(void *arg){
                         close(sock_fd);
                         temp = temp->next;                        
                     }
-                    //LOCK THE MUTEX HERE
+                    //Lock the mutex
+                    if(err=pthread_mutex_lock(&mtx)){   //Lock mutex
+                        perror2("pthread mutex lock",err);
+                        exit(EXIT_FAILURE);
+                    }
                     printf("%d\n",sum);
+                    //Unlock the mutex
+                    if (err=pthread_mutex_unlock(&mtx))
+                    {
+                        perror2("pthread mutex unlock\n",err);
+                        exit(EXIT_FAILURE);
+                    }
                     write(clientInfo.fd,&sum,sizeof(int));
-                    //UNLCOK
                 }else
                 {
                     //Country given.Send the request to the responsible worker
@@ -342,10 +345,19 @@ void *serve_client(void *arg){
                     if(nbytes<4){
                         printf("Something went wrong\n");
                     }else{
-                        //LOCK THE MUTEXT
+                        //Lock the mutex
+                        if(err=pthread_mutex_lock(&mtx)){   //Lock mutex
+                            perror2("pthread mutex lock",err);
+                            exit(EXIT_FAILURE);
+                        }
                         printf("%d\n",result);
+                        //Unlock the mutex
+                        if (err=pthread_mutex_unlock(&mtx))
+                        {
+                            perror2("pthread mutex unlock\n",err);
+                            exit(EXIT_FAILURE);
+                        }
                         write(clientInfo.fd,&result,sizeof(int));
-                        //UNLOCK THE MUTEX
                     }
                     close(sock_fd);
                 }
@@ -400,8 +412,17 @@ void *serve_client(void *arg){
                         else    //There is no exit date
                         {
                             //Lock the mutex
+                            if(err=pthread_mutex_lock(&mtx)){   //Lock mutex
+                                perror2("pthread mutex lock",err);
+                                exit(EXIT_FAILURE);
+                            }
                             printf("%s %s %s %s %d %d-%d-%d --\n",response_info.id,response_info.patientName,response_info.patientLastName,response_info.patientDisease,response_info.patientAge,response_info.patientEntryDate.day,response_info.patientEntryDate.month,response_info.patientEntryDate.year);
                             //Unlock the mutex
+                            if (err=pthread_mutex_unlock(&mtx))
+                            {
+                                perror2("pthread mutex unlock\n",err);
+                                exit(EXIT_FAILURE);
+                            }
                             char response_msg[300];
                             //Create response message to send the client
                             sprintf(response_msg,"%s %s %s %s %d %d-%d-%d --\n",response_info.id,response_info.patientName,response_info.patientLastName,response_info.patientDisease,response_info.patientAge,response_info.patientEntryDate.day,response_info.patientEntryDate.month,response_info.patientEntryDate.year);
@@ -416,8 +437,17 @@ void *serve_client(void *arg){
                 }
                 if(flag==0){
                     //Lock the mutex
+                    if(err=pthread_mutex_lock(&mtx)){   //Lock mutex
+                        perror2("pthread mutex lock",err);
+                        exit(EXIT_FAILURE);
+                    }
                     printf("Record not found\n");
                     //Unlock the mutex
+                    if (err=pthread_mutex_unlock(&mtx))
+                    {
+                        perror2("pthread mutex unlock\n",err);
+                        exit(EXIT_FAILURE);
+                    }
                     //Send response message to the client
                     write(clientInfo.fd,"Record not found\n",strlen("Record not found\n"));
                 }
@@ -460,6 +490,11 @@ void *serve_client(void *arg){
                 if(info.countryName[0]==0){
                     //Sent the request and sum the results
                     ServerHT_Entry *ht_entry;
+                    //Lock the mutex
+                    if(err=pthread_mutex_lock(&mtx)){   //Lock mutex
+                        perror2("pthread mutex lock",err);
+                        exit(EXIT_FAILURE);
+                    }
                     for(int i=0;i<ServerHT_size;i++){
                         ht_entry = ServerHT[i];
                         while(ht_entry!=NULL){
@@ -491,6 +526,12 @@ void *serve_client(void *arg){
                             ht_entry = ht_entry->next;
                         }                        
                     }
+                    //Unlock the mutex
+                    if (err=pthread_mutex_unlock(&mtx))
+                    {
+                        perror2("pthread mutex unlock\n",err);
+                        exit(EXIT_FAILURE);
+                    }
                 }else
                 {
                     //Country given.Send the request to the responsible worker
@@ -512,17 +553,32 @@ void *serve_client(void *arg){
                     if(error==-1){
                         printf("Something went wrong\n");
                     }else{
-                        //LOCK THE MUTEXT
+                        //Lock the mutex
+                        if(err=pthread_mutex_lock(&mtx)){   //Lock mutex
+                            perror2("pthread mutex lock",err);
+                            exit(EXIT_FAILURE);
+                        }
                         printf("%s",response);
                         nbytes = write(clientInfo.fd,response,strlen(response)); //Send the result to the client
                         if(nbytes<strlen(response)){
                             printf("Something went wrong during sending the response\n");
                         }
-                        //UNLOCK THE MUTEX
+                        //Unlock the mutex
+                        if (err=pthread_mutex_unlock(&mtx))
+                        {
+                            perror2("pthread mutex unlock\n",err);
+                            exit(EXIT_FAILURE);
+                        }
                     }
                     close(sock_fd);
                 }                
             }
+
+            if (request_code==-1)   //Invalid request
+            {
+                write(clientInfo.fd,"Invalid request\n",strlen("Invalid request\n"));
+            }
+            
         }
         close(clientInfo.fd);
         memset(clientInfo.address,0,100);
