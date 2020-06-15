@@ -268,10 +268,10 @@ void sendDiseaseFrequencyResult(char *server_fifo,queuenode *requests,struct Wor
 //Send df results to WhoServer
 void send_df_results(int fd,struct dfData info,struct WorkersDataStructs *myData){
     int result = 0,nbytes;
-    printf("Country:%s\n",info.country);
-    printf("Disease:%s\n",info.virusName);
-    print_date(&info.entry_date);
-    print_date(&info.exit_date);
+    //printf("Country:%s\n",info.country);
+    //printf("Disease:%s\n",info.virusName);
+    //print_date(&info.entry_date);
+    //print_date(&info.exit_date);
     RecordTreeptr root = getDiseaseHTvalue(myData->DiseaseHashTable,info.virusName,myData->hashtablesize);  //Get the root of the tree from the diseaseHT
    
     if(root==NULL){
@@ -285,7 +285,7 @@ void send_df_results(int fd,struct dfData info,struct WorkersDataStructs *myData
     }
 
     if(info.country[0]=='0'){//Country not given
-        printf("Entering here\n");
+        //printf("Entering here\n");
         result = RecordTreeCountWithDates(root,info.entry_date,info.exit_date); //Count the nodes that are between the dates given
     }
     else    //Country given
@@ -294,7 +294,7 @@ void send_df_results(int fd,struct dfData info,struct WorkersDataStructs *myData
     }
 
     //Send the result to the server
-    printf("Result is %d\n",result);
+    //printf("Result is %d\n",result);
     nbytes = write(fd,&result,sizeof(result));
     if(nbytes<sizeof(int)){
         printf("Something went wrong\n");

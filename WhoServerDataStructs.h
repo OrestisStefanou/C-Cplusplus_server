@@ -5,7 +5,7 @@
 
 pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;    //Initialize thread mutex
 
-pthread_cond_t cvar;    //Condition variable
+pthread_cond_t cvar,cvar2;    //Condition variable
 pthread_t *pthreads;    //Array with thread ids
 
 //List with network information of the workers

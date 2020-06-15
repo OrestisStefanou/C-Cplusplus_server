@@ -307,7 +307,7 @@ int main(int argc, char const *argv[])
                         perror("accept");
                     }else{
                         add_to_pfds(&pfds,new_socket,&fd_count,&fd_size);//Add the new socket to the set
-                        printf("Worker:New connection from %s\n",inet_ntop(client_address.ss_family,get_in_addr((struct sockaddr*)&client_address),remoteIP, INET6_ADDRSTRLEN));
+                        //printf("Worker:New connection from %s\n",inet_ntop(client_address.ss_family,get_in_addr((struct sockaddr*)&client_address),remoteIP, INET6_ADDRSTRLEN));
                     }
 
                 }else{
@@ -322,13 +322,13 @@ int main(int argc, char const *argv[])
                     int sender_fd = pfds[i].fd;
 
                     if(flag==-1){
-                        printf("Worker:socket hung up\n");
+                        //printf("Worker:socket hung up\n");
                         close(pfds[i].fd);
                         del_from_pfds(pfds,i,&fd_count);
                     }else
                     {
                         //We got some good data from a client
-                        printf("Worker got message:%s",buf);
+                        //printf("Worker got message:%s",buf);
                         if(strcmp(q_info.query,"df")==0){   //diseaseFrequency
                             memset(buf,256,0);
                             //Get information to complete the request

@@ -40,7 +40,7 @@ int main(int argc, char const *argv[])
     //Check command line arguments
     if (argc != 9)
     {
-        printf("Wrong usage\n");
+        printf("Usage is:./whoServer –q queryPortNum -s statisticsPortNum –w numThreads –b bufferSize\n");
         exit(EXIT_FAILURE);
     }
 
@@ -53,7 +53,8 @@ int main(int argc, char const *argv[])
     buffer_init();  //Initialize the buffer
 
     //Initialize condition variable
-    pthread_cond_init(&cvar,NULL);        
+    pthread_cond_init(&cvar,NULL);
+    pthread_cond_init(&cvar2,NULL);         
 
     query_port = atoi(argv[2]);   //Port number to listen
     int stats_port = atoi(argv[4]);
@@ -166,7 +167,7 @@ int main(int argc, char const *argv[])
                 }
                 while (buffer_is_full())    //If buffer is full wait
                 {
-                    pthread_cond_wait(&cvar,&mtx);  //wait for signal
+                    pthread_cond_wait(&cvar2,&mtx);  //wait for signal
                 }
                 //Entering new socket from connection in the buffer
                 buffer_insert(new_socket_fd,remoteIP);
@@ -589,6 +590,18 @@ void *serve_client(void *arg){
         }
         close(clientInfo.fd);
         memset(clientInfo.address,0,100);
+        //Lock the mutex
+        if(err=pthread_mutex_lock(&mtx)){   //Lock mutex
+            perror2("pthread mutex lock",err);
+             exit(EXIT_FAILURE);
+        }
+        pthread_cond_signal(&cvar2);
+        //Unlock the mutex
+        if (err=pthread_mutex_unlock(&mtx))
+        {
+            perror2("pthread mutex unlock\n",err);
+            exit(EXIT_FAILURE);
+        }
     }
     
 }
@@ -602,6 +615,10 @@ void signal_handler(int signal_number) {
     free(pthreads);
     //Destroy condition variable
     if(err = pthread_cond_destroy(&cvar)){
+        perror2("pthread_cond_destroy",err);
+        exit(EXIT_FAILURE);
+    }
+    if(err = pthread_cond_destroy(&cvar2)){
         perror2("pthread_cond_destroy",err);
         exit(EXIT_FAILURE);
     }
