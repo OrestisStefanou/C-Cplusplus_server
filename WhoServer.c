@@ -294,6 +294,7 @@ void *serve_client(void *arg){
                     strcpy(info.country,"000000000");   //So the worker knows country is not given
                     //Sent the request and sum the results
                     Addr_List_Node *temp = addr_list_head;
+                    //print_addr_list();
                     while(temp!=NULL){
                         //Send the request to the worker
                         //Create the message with the information needed

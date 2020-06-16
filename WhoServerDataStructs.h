@@ -26,6 +26,25 @@ void addr_list_insert(char *a,int p){
     addr_list_head = new_node;
 }
 
+void print_addr_list(){
+    Addr_List_Node *temp = addr_list_head;
+    while(temp!=NULL){
+        printf("Ip:%s,Port:%d\n",temp->addr,temp->port);
+        temp=temp->next;
+    }
+}
+
+int addr_list_search(char *a,int p){
+    Addr_List_Node *temp = addr_list_head;
+    while(temp!=NULL){
+        if(strcmp(temp->addr,a)==0 && temp->port==p){
+            return 1;
+        }
+        temp = temp->next;
+    }
+    return 0;
+}
+
 void free_addr_list(){
     Addr_List_Node *temp;
     while(addr_list_head!=NULL){
@@ -88,7 +107,8 @@ void ServerHT_insert(char *a,int p,File_Stats stats){
         ServerHT[index] = new_entry;
 
         //Update the addresses list
-        addr_list_insert(a,p);
+        if(addr_list_search(a,p)==0)
+            addr_list_insert(a,p);
         return;
     }
 
@@ -130,7 +150,8 @@ void ServerHT_insert(char *a,int p,File_Stats stats){
     temp->next = new_entry;
 
     //Update the addresses list
-    addr_list_insert(a,p);
+    if(addr_list_search(a,p)==0)
+        addr_list_insert(a,p);
 }
 
 //Get an entry from the Hashtable

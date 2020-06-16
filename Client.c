@@ -86,6 +86,7 @@ int main(int argc, char const *argv[])
             }
                 
         }
+        pthread_cond_broadcast(&cvar2);
         for(int i=0;i<flag;i++){
             pthread_join(pthreads[i],NULL);
         }
@@ -128,6 +129,7 @@ void *thread_function(void *argp){
 
     pthread_cond_signal(&cvar);
 
+    pthread_cond_wait(&cvar2,&mtx);
     //Unlock mutex
     if (err=pthread_mutex_unlock(&mtx))
     {
