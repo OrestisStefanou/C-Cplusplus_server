@@ -15,7 +15,7 @@ void *thread_function(void *);  //Declare thread function
 char server_name[SERVER_NAME_LEN_MAX + 1] = { 0 };
 int server_port;
 
-int finished=0,thread_number;
+int started=0,thread_number,thread_counter=0;
 
 int main(int argc, char const *argv[])
 {   
@@ -68,11 +68,17 @@ int main(int argc, char const *argv[])
                 }
                 if(fgets(buf,100,fp)){                
                     /* Create thread to serve connection to client. */
-                    if (pthread_create(&pthreads[i], &pthread_attr, thread_function, (void *)buf) != 0) {
+                    if (pthread_create(&pthreads[i],NULL, thread_function,NULL) != 0) {
                         perror("pthread_create");
                         continue;
                     }
-                    pthread_cond_wait(&cvar,&mtx);
+                    thread_counter++;
+                    //pthread_cond_wait(&cvar,&mtx);
+                    printf("Main inserting\n");
+                    err = requests_array_insert(buf);
+                    if(err==-1){
+                        printf("Something went wrong during insert\n");
+                    }
                     //Unlock mutex
                     if (err=pthread_mutex_unlock(&mtx))
                     {
@@ -81,20 +87,47 @@ int main(int argc, char const *argv[])
                     }
                 }   
             else{
-                flag=i;
+                flag=1;
                 break;
-            }
-                
+            }    
         }
-        pthread_cond_broadcast(&cvar2);
-        for(int i=0;i<flag;i++){
-            pthread_join(pthreads[i],NULL);
-        }
-        if (flag>0)
+
+        if (thread_counter==0)
         {
             break;
         }
+
+        //Lock mutex
+        if(err=pthread_mutex_lock(&mtx)){
+            perror2("phtread_mutex_lock",err);
+            exit(EXIT_FAILURE);
+        }
+
+
+        printf("Thread counter is %d\n",thread_counter);
+        while(started!=thread_counter){
+            pthread_cond_wait(&cvar,&mtx);
+        }
+        thread_counter=0;
         
+        pthread_cond_broadcast(&cvar2);
+        printf("Broadcasting and waiting\n");
+        while(requests_array_empty()==0 || started!=0){
+            pthread_cond_wait(&cvar,&mtx);
+        }
+        
+        //Unlock mutex
+        if (err=pthread_mutex_unlock(&mtx))
+        {
+            perror2("pthread mutex unlock\n",err);
+            exit(EXIT_FAILURE);
+        }
+        //for(int i=0;i<flag;i++){
+        //    pthread_join(pthreads[i],NULL);
+        //}
+        if(flag>0){
+            break;
+        }
     }
 
     free(pthreads);
@@ -123,13 +156,32 @@ void *thread_function(void *argp){
         exit(EXIT_FAILURE);
     }
 
-    char *r=(char *)argp;
-    strcpy(request,r);
     //printf("Request is %s\n",request);
 
-    pthread_cond_signal(&cvar);
-
+    //pthread_cond_signal(&cvar);
+    printf("Thread waiting\n");
+    started++;
+    printf("Started:%d\n",started);
+    if(started==thread_counter)
+        pthread_cond_signal(&cvar);
+    //Unlock mutex
+    if (err=pthread_mutex_unlock(&mtx))
+    {
+        perror2("pthread mutex unlock\n",err);
+        exit(EXIT_FAILURE);
+    }
+    //Lock mutex
+    if(err=pthread_mutex_lock(&mtx)){
+        perror2("phtread_mutex_lock",err);
+        exit(EXIT_FAILURE);
+    }
     pthread_cond_wait(&cvar2,&mtx);
+
+    err = requests_array_get(request);
+    if(err==-1){
+        printf("Something went wrong during get\n");
+    }
+    printf("Thread got request %s",request);
     //Unlock mutex
     if (err=pthread_mutex_unlock(&mtx))
     {
@@ -158,14 +210,6 @@ void *thread_function(void *argp){
             perror("socket");
             exit(1);
         }
-
-        // Connect to socket with server address.
-        /*if (connect(socket_fd, (struct sockaddr *)&server_address, sizeof server_address) == -1) {
-            perror("connect");
-            exit(1);
-        }*/
-
-        //write(socket_fd,request,strlen(request));
         
         //Lock mutex
         if(err=pthread_mutex_lock(&mtx)){
@@ -186,7 +230,13 @@ void *thread_function(void *argp){
             printf("%c",c);
         }
 
-        //pthread_cond_signal(&cvar);
+        started--;
+        printf("Started:%d\n",started);
+        if(started==0)
+            pthread_cond_signal(&cvar);
+
+        pthread_cond_signal(&cvar2);    //TESTING
+
         //Unlock mutex
         if (err=pthread_mutex_unlock(&mtx))
         {
@@ -196,5 +246,6 @@ void *thread_function(void *argp){
 
         close(socket_fd);
     }
-return NULL;
+    printf("Thread exiting\n");
+    return NULL;
 }
