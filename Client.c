@@ -42,7 +42,7 @@ int main(int argc, char const *argv[])
     pthreads = malloc(thread_number * sizeof(pthread_t));    //Create the array with pthread's id
 
     requests_array_size = thread_number;
-    init_requests_array();
+    init_requests_array();      //Initialize reqyests array
 
     FILE *fp = fopen(argv[2],"r");
 
@@ -56,26 +56,24 @@ int main(int argc, char const *argv[])
         exit(1);
     }
 
-    int flag=0;
+    int flag=0;     //Flag to know when we finished with file reading
     while(1)
     {
         for(int i=0;i<thread_number;i++){
-                //printf("Buf is %s",buf);
                 //Lock mutex
                 if(err=pthread_mutex_lock(&mtx)){
                     perror2("phtread_mutex_lock",err);
                     exit(EXIT_FAILURE);
                 }
-                if(fgets(buf,100,fp)){                
-                    /* Create thread to serve connection to client. */
-                    if (pthread_create(&pthreads[i],NULL, thread_function,NULL) != 0) {
+                if(fgets(buf,100,fp)){   //Read line             
+                    /* Create thread to send the request to the server. */
+                    if (pthread_create(&pthreads[i],&pthread_attr, thread_function,NULL) != 0) {
                         perror("pthread_create");
                         continue;
                     }
                     thread_counter++;
-                    //pthread_cond_wait(&cvar,&mtx);
-                    printf("Main inserting\n");
-                    err = requests_array_insert(buf);
+                    //printf("Main inserting\n");
+                    err = requests_array_insert(buf);   //Insert the request in the array
                     if(err==-1){
                         printf("Something went wrong during insert\n");
                     }
@@ -87,12 +85,12 @@ int main(int argc, char const *argv[])
                     }
                 }   
             else{
-                flag=1;
+                flag=1;     //We reached the end of the file
                 break;
             }    
         }
 
-        if (thread_counter==0)
+        if (thread_counter==0)  //No threads created means we reached the of the file
         {
             break;
         }
@@ -104,15 +102,18 @@ int main(int argc, char const *argv[])
         }
 
 
-        printf("Thread counter is %d\n",thread_counter);
+        //printf("Thread counter is %d\n",thread_counter);
+        //Wait until all threads are ready
         while(started!=thread_counter){
             pthread_cond_wait(&cvar,&mtx);
         }
-        thread_counter=0;
+        thread_counter=0;   //Reset the counter
         
-        pthread_cond_broadcast(&cvar2);
-        printf("Broadcasting and waiting\n");
+        //pthread_cond_broadcast(&cvar2);
+        //printf("Broadcasting and waiting\n");
+        //Signl the threads to start and wait until all threads are finished
         while(requests_array_empty()==0 || started!=0){
+            pthread_cond_signal(&cvar2);
             pthread_cond_wait(&cvar,&mtx);
         }
         
@@ -122,9 +123,7 @@ int main(int argc, char const *argv[])
             perror2("pthread mutex unlock\n",err);
             exit(EXIT_FAILURE);
         }
-        //for(int i=0;i<flag;i++){
-        //    pthread_join(pthreads[i],NULL);
-        //}
+
         if(flag>0){
             break;
         }
@@ -156,14 +155,10 @@ void *thread_function(void *argp){
         exit(EXIT_FAILURE);
     }
 
-    //printf("Request is %s\n",request);
-
-    //pthread_cond_signal(&cvar);
-    printf("Thread waiting\n");
-    started++;
-    printf("Started:%d\n",started);
-    if(started==thread_counter)
-        pthread_cond_signal(&cvar);
+    //printf("Thread waiting\n");
+    started++;  //Increase the number of threads that are ready
+    //printf("Started:%d\n",started);
+    pthread_cond_signal(&cvar);     //Signal to main thread that thread is ready
     //Unlock mutex
     if (err=pthread_mutex_unlock(&mtx))
     {
@@ -175,13 +170,13 @@ void *thread_function(void *argp){
         perror2("phtread_mutex_lock",err);
         exit(EXIT_FAILURE);
     }
-    pthread_cond_wait(&cvar2,&mtx);
+    pthread_cond_wait(&cvar2,&mtx);     //Wait for signal from main thread
 
-    err = requests_array_get(request);
+    err = requests_array_get(request);  //Get the request to send the server
     if(err==-1){
         printf("Something went wrong during get\n");
     }
-    printf("Thread got request %s",request);
+    //printf("Thread got request %s",request);
     //Unlock mutex
     if (err=pthread_mutex_unlock(&mtx))
     {
@@ -221,7 +216,7 @@ void *thread_function(void *argp){
             perror("connect");
             exit(1);
         }
-        write(socket_fd,request,strlen(request));
+        write(socket_fd,request,strlen(request));   //Send the request
         printf("Request is %s\n",request);
         //Get the response
         char c;
@@ -230,12 +225,9 @@ void *thread_function(void *argp){
             printf("%c",c);
         }
 
-        started--;
-        printf("Started:%d\n",started);
-        if(started==0)
-            pthread_cond_signal(&cvar);
-
-        pthread_cond_signal(&cvar2);    //TESTING
+        started--;  //Decrease the number of working threads
+        //printf("Started:%d\n",started);
+        pthread_cond_signal(&cvar);     //Signal main thread that this thread has finished
 
         //Unlock mutex
         if (err=pthread_mutex_unlock(&mtx))
@@ -246,6 +238,6 @@ void *thread_function(void *argp){
 
         close(socket_fd);
     }
-    printf("Thread exiting\n");
+    //printf("Thread exiting\n");
     return NULL;
 }

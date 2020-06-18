@@ -214,8 +214,12 @@ void *serve_client(void *arg){
         memset(buffer,0,100);
         i=0;
         //Read the request
+        int nbytes=0;
         while(1){
-            read(clientInfo.fd,&buffer[i],1);
+            nbytes = read(clientInfo.fd,&buffer[i],1);
+            if(nbytes==0){
+                continue;
+            }
             if(buffer[i]=='\n')
                 break;
             i++;
