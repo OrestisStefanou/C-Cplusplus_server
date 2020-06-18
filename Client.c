@@ -8,14 +8,14 @@
 
 pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;    //Thread mutex
 
-pthread_cond_t cvar,cvar2;    //Condiotion variable
+pthread_cond_t cvar,cvar2;    //Condiotion variables
 
 void *thread_function(void *);  //Declare thread function
 
 char server_name[SERVER_NAME_LEN_MAX + 1] = { 0 };
 int server_port;
 
-int started=0,thread_number,thread_counter=0;
+int started=0,thread_number,thread_counter=0;   //Shared variables
 
 int main(int argc, char const *argv[])
 {   

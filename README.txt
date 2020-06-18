@@ -49,3 +49,7 @@ Worker:
 O worker episis me tin xrisi tis sinartisis poll parakoluthi oxi mono to socket sto opoio kani listen alla kai ta file descriptors ton sindeseon pu dexete(ta file descriptors pou epistrefi i accept).
 
 O logos pu epeleksa tin xrisi tis sinartisis poll ine epidi ine sxetika apli kai sxetika apodotiki otan o arithmos ton file descriptor pu parakolouthoume den ine poli megalos.Sto arxio network.h iparxoun oi sinartisis pu exun na kanoun me tin poll.
+
+
+WhoClient(Client.c):
+Yparxoun 2 condition variables gia ton sigxronismo ton threads(cvar1,cvar2) kai enas mutex(mtx).Exo dimiurgisi ena pinaka(requests_array) ston opoio to main thread vazi ta request pu diavazi apo to arxio.Epidi o pinakas ine koini metavliti anamesa sta thread prostateuete apo to mtx.To main thread diavazi ta request apo to arxio,ta topotheti sto requests_array kai dimiurgi ena thread gia na stili to request ston server.To thread otan dimiugithi prota stelni signal sto main thread oti ine etimo kai meta perimeni mexri na erthi signal apo to main thread gia na ksekinisi.I diadikasia auti ginete mexri na ftasume ton arithmo ton threads.Otan ftasume ton arithmo ton threads i main perimeni mexri ola ta threads na ine etima na ksekinisun(me xrisi ton condition variables).Otan ola ine etima kani signal gia na ksekinisun kai perimeni mexri na teliosun.Auti i diadikasia sinexizete mexri to main thread na diavasi olokliro to file.
